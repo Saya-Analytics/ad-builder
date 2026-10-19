@@ -1,0 +1,188 @@
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { loadClientState } from '@/lib/data';
+import { copyCode, driveFolderId, hookCode, pipelineSteps } from '@/lib/approvals';
+import { a1, STATUS_BUILDING, TABS } from '@/lib/columns';
+import { dropdownOptions, listFolder, type DriveFile } from '@/lib/google';
+import { writeApprovalCell } from '@/app/actions';
+import { EditableField } from '@/components/EditableField';
+import { CommandButton } from '@/components/Commands';
+
+export const dynamic = 'force-dynamic';
+
+const DEST = [
+  ['AO', '① What does Claude do?', 'action'],
+  ['AP', '② Campaign', 'campaign'],
+  ['AQ', '③ Ad set', 'adSet'],
+  ['AR', '④ Copy settings from', 'copyFrom'],
+  ['AS', '⑤ Daily budget', 'budget'],
+] as const;
+
+const domain = (url: string) => {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '').toUpperCase();
+  } catch {
+    return url.toUpperCase();
+  }
+};
+
+export default async function RowDetail({ params }: { params: Promise<{ clientId: string; row: string }> }) {
+  const { clientId, row: rowParam } = await params;
+  const loaded = await loadClientState(clientId);
+  if (!loaded.ok) return null;
+  const s = loaded.state;
+  const r = s.rows.find((x) => x.row === Number(rowParam));
+  if (!r) notFound();
+  const st = s.status.get(r.row)!;
+  const steps = pipelineSteps(r, s.copyByCode);
+  const set = r.copySet ? s.copyByCode.get(copyCode(r.copySet)) : undefined;
+  const sheet = s.client.sheetId;
+  const cellA1 = (col: string) => a1(TABS.approvals, `${col}${r.row}`);
+
+  const folder = driveFolderId(r.drive);
+  const [files, statusOptions, ...destOptions] = await Promise.all([
+    folder ? listFolder(folder).catch(() => null) : Promise.resolve(null),
+    dropdownOptions(sheet, cellA1('B')).catch(() => []),
+    ...DEST.map(([col]) => dropdownOptions(sheet, cellA1(col)).catch(() => [])),
+  ]);
+  const videos = (files ?? []).filter((f) => f.mimeType.startsWith('video/'));
+  const video: DriveFile | undefined = videos.find((f) => /9x16/i.test(f.name)) ?? videos[0];
+
+  const headline = set?.headlines[0] ?? r.headlines[0] ?? '';
+  const primary = set?.primaryTexts[0] ?? r.primaryTexts[0] ?? '';
+  const description = set?.descriptions[0] ?? r.descriptions[0] ?? '';
+  const save = (col: string) => writeApprovalCell.bind(null, clientId, r.row, col);
+
+  const sub =
+    st.state === 'ready'
+      ? 'Ready to build.'
+      : st.state === 'built'
+        ? `Built, paused${r.log.adId ? ` · ad ${r.log.adId}` : ''}.`
+        : st.state === 'fix'
+          ? st.problems[0].title + '.'
+          : `Status: ${r.status}. Not in the build queue.`;
+
+  return (
+    <main className="page page-narrow">
+      <div>
+        <Link href={`/c/${clientId}#rows`} style={{ fontSize: 17, minHeight: 44, display: 'inline-flex', alignItems: 'center' }}>
+          ‹ All rows
+        </Link>
+      </div>
+      <section className="section" style={{ gap: 6 }}>
+        <span className="eyebrow">
+          {[`Row ${r.row}`, r.brand, r.brief, r.copySet ? copyCode(r.copySet) : '', r.hook ? hookCode(r.hook) : ''].filter(Boolean).join(' · ')}
+        </span>
+        <h1 className="title">{headline || r.differentiation || r.adId || `Row ${r.row}`}</h1>
+        <span className="sub">{sub}</span>
+      </section>
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-start' }}>
+        <div style={{ flex: '0 1 260px', display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
+          {video ? (
+            <iframe className="preview-video" src={`https://drive.google.com/file/d/${video.id}/preview`} title={`Video: ${video.name}`} allow="autoplay" />
+          ) : (
+            <div className="preview-video" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 22, color: '#cccccc', fontSize: 14, textAlign: 'center' }}>
+              {folder ? (files === null ? 'Can’t open the Drive folder. Share it with the service account.' : 'No video in this folder.') : 'No Drive folder in Z.'}
+            </div>
+          )}
+          {video ? <span className="xs muted">{video.name}</span> : null}
+          {r.drive ? (
+            <a href={r.drive} target="_blank" rel="noreferrer" className="small">
+              Open Drive folder ›
+            </a>
+          ) : null}
+        </div>
+
+        <div className="card" style={{ flex: '1 1 340px' }}>
+          <span className="small muted">Ad preview</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--ink)' }} aria-hidden="true" />
+            <div>
+              <div className="strong" style={{ fontSize: 15 }}>{r.brand}</div>
+              <div className="xs muted">Sponsored</div>
+            </div>
+          </div>
+          {primary ? <p style={{ whiteSpace: 'pre-line' }}>{primary}</p> : <p className="muted">No primary text yet. {r.copySet ? '' : 'Claude writes the copy on build day.'}</p>}
+          <div className="adcard">
+            <div style={{ minWidth: 0 }}>
+              <div className="xs muted">{r.url ? domain(r.url) : 'NO URL'}</div>
+              <div className="strong">{headline || '—'}</div>
+              <div className="small" style={{ color: 'var(--secondary)' }}>{description}</div>
+            </div>
+            <span className="cta">{r.cta || 'Shop Now'}</span>
+          </div>
+          {set && (set.headlines.length > 1 || set.primaryTexts.length > 1) ? (
+            <span className="xs muted">
+              {set.code} has {set.headlines.length} headlines, {set.primaryTexts.length} primary texts, {set.descriptions.length} descriptions. Showing the first of each.
+            </span>
+          ) : null}
+          <CommandButton clientId={clientId} command="REWRITE_COPY" args={`row ${r.row}`} label="Ask Claude to rewrite the copy" />
+        </div>
+
+        <div style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
+          <div className="card">
+            <span className="small muted">Checklist</span>
+            {steps.map((c) => (
+              <div key={c.label} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                <span className={`mark ${c.done ? 'mark-done' : 'mark-todo'}`} aria-hidden="true">
+                  {c.done ? '✓' : '·'}
+                </span>
+                <div style={{ minWidth: 0 }}>
+                  <div className="strong" style={{ fontSize: 15 }}>
+                    {c.label}
+                    <span className="sr">{c.done ? ' (done)' : ' (not yet)'}</span>
+                  </div>
+                  <div className="small muted" style={{ overflowWrap: 'anywhere' }}>{c.detail}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="tile on-dark">
+            {st.problems.length ? (
+              st.problems.map((p) => (
+                <div key={p.title}>
+                  <div className="strong">{p.title}</div>
+                  <div className="small muted">{p.fix}</div>
+                </div>
+              ))
+            ) : (
+              <span className="strong">No warnings on this row.</span>
+            )}
+            <EditableField dark id="Y" label="Final URL (column Y)" type="url" value={r.url} save={save('Y')} />
+            <EditableField
+              dark
+              id="B"
+              label="Status (column B)"
+              value={r.status}
+              options={statusOptions.length ? statusOptions : [STATUS_BUILDING]}
+              save={save('B')}
+              hint={`“${STATUS_BUILDING}” puts the row in Claude’s build queue.`}
+            />
+          </div>
+        </div>
+      </div>
+
+      <section className="card" aria-label="Destination">
+        <div className="row-between">
+          <h2 className="h2">Destination · where Claude builds it</h2>
+          <span className="small muted">AO–AS</span>
+        </div>
+        <div className="grid-cards" style={{ gap: 16 }}>
+          {DEST.map(([col, label, key], i) => (
+            <EditableField key={col} id={col} label={`${label} (${col})`} value={r[key]} options={destOptions[i]} save={save(col)} />
+          ))}
+        </div>
+        {r.check ? <span className="small muted">Sheet check (AT): {r.check}</span> : null}
+      </section>
+
+      {r.log.raw ? (
+        <section className="notice small" aria-label="Build log">
+          <strong>Build log (AU, written by Claude)</strong>
+          <span style={{ overflowWrap: 'anywhere' }}>{r.log.raw}</span>
+        </section>
+      ) : null}
+    </main>
+  );
+}

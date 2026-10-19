@@ -1,0 +1,238 @@
+import 'server-only';
+import { readFileSync } from 'node:fs';
+import { JWT } from 'google-auth-library';
+import { colToIndex } from './columns.ts';
+
+// Thin REST wrappers around the Sheets and Drive APIs, authenticated as the service account.
+// Set FAKE_SHEETS_FILE to a local JSON fixture to run the UI without Google (dev only).
+
+export class GoogleError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+  ) {
+    super(message);
+  }
+}
+
+const SCOPES = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive.readonly'];
+
+interface ServiceAccount {
+  client_email: string;
+  private_key: string;
+}
+
+let account: ServiceAccount | null = null;
+let jwt: JWT | null = null;
+
+function serviceAccount(): ServiceAccount {
+  if (account) return account;
+  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  if (!raw) throw new GoogleError('GOOGLE_SERVICE_ACCOUNT_JSON is not set', 500);
+  const json = raw.trim().startsWith('{') ? raw : Buffer.from(raw, 'base64').toString('utf8');
+  account = JSON.parse(json) as ServiceAccount;
+  return account;
+}
+
+export function serviceAccountEmail(): string {
+  if (fake()) return 'ad-builder@example.iam.gserviceaccount.com';
+  try {
+    return serviceAccount().client_email;
+  } catch {
+    return '(service account not configured)';
+  }
+}
+
+async function gfetch<T>(url: string, init: RequestInit = {}): Promise<T> {
+  if (!jwt) {
+    const sa = serviceAccount();
+    jwt = new JWT({ email: sa.client_email, key: sa.private_key, scopes: SCOPES });
+  }
+  const { token } = await jwt.getAccessToken();
+  const res = await fetch(url, {
+    ...init,
+    cache: 'no-store',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...init.headers },
+  });
+  if (!res.ok) {
+    let message = res.statusText;
+    try {
+      message = ((await res.json()) as { error?: { message?: string } }).error?.message ?? message;
+    } catch {}
+    throw new GoogleError(message, res.status);
+  }
+  return (await res.json()) as T;
+}
+
+const SHEETS = 'https://sheets.googleapis.com/v4/spreadsheets';
+const enc = encodeURIComponent;
+
+export type Render = 'FORMATTED_VALUE' | 'FORMULA';
+
+export interface SheetMeta {
+  title: string;
+  tabs: { title: string; sheetId: number }[];
+}
+
+export async function getMeta(spreadsheetId: string): Promise<SheetMeta> {
+  if (fake()) return fakeMeta(spreadsheetId);
+  const r = await gfetch<{ properties: { title: string }; sheets: { properties: { title: string; sheetId: number } }[] }>(
+    `${SHEETS}/${spreadsheetId}?fields=properties.title,sheets.properties(sheetId,title)`,
+  );
+  return { title: r.properties.title, tabs: r.sheets.map((s) => s.properties) };
+}
+
+export async function batchGet(spreadsheetId: string, ranges: string[], render: Render = 'FORMATTED_VALUE'): Promise<string[][][]> {
+  if (fake()) return ranges.map((r) => fakeGet(spreadsheetId, r, render));
+  const q = ranges.map((r) => `ranges=${enc(r)}`).join('&');
+  const r = await gfetch<{ valueRanges: { values?: string[][] }[] }>(
+    `${SHEETS}/${spreadsheetId}/values:batchGet?${q}&valueRenderOption=${render}`,
+  );
+  return r.valueRanges.map((v) => v.values ?? []);
+}
+
+/** Writes as if typed by a person, so dropdown values and URLs behave like in the sheet. */
+export async function updateValues(spreadsheetId: string, range: string, values: string[][]): Promise<void> {
+  if (fake()) return fakeUpdate(spreadsheetId, range, values);
+  await gfetch(`${SHEETS}/${spreadsheetId}/values/${enc(range)}?valueInputOption=USER_ENTERED`, {
+    method: 'PUT',
+    body: JSON.stringify({ range, values }),
+  });
+}
+
+/** Appends below the last row. RAW so nothing turns into a date or a number. */
+export async function appendValues(spreadsheetId: string, range: string, values: string[][]): Promise<void> {
+  if (fake()) return fakeAppend(spreadsheetId, range, values);
+  await gfetch(`${SHEETS}/${spreadsheetId}/values/${enc(range)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
+    method: 'POST',
+    body: JSON.stringify({ values }),
+  });
+}
+
+export async function addTab(spreadsheetId: string, title: string): Promise<void> {
+  if (fake()) return void (fakeStore().spreadsheets[spreadsheetId].tabs[title] ??= []);
+  await gfetch(`${SHEETS}/${spreadsheetId}:batchUpdate`, {
+    method: 'POST',
+    body: JSON.stringify({ requests: [{ addSheet: { properties: { title } } }] }),
+  });
+}
+
+/** Copies one tab from a template spreadsheet and gives it its original name. */
+export async function copyTabFrom(templateId: string, tabTitle: string, destinationId: string): Promise<void> {
+  if (fake()) {
+    const src = fakeStore().spreadsheets[templateId]?.tabs[tabTitle];
+    fakeStore().spreadsheets[destinationId].tabs[tabTitle] = structuredClone(src ?? []);
+    return;
+  }
+  const meta = await getMeta(templateId);
+  const tab = meta.tabs.find((t) => t.title === tabTitle);
+  if (!tab) throw new GoogleError(`Template sheet has no "${tabTitle}" tab`, 404);
+  const copied = await gfetch<{ sheetId: number }>(`${SHEETS}/${templateId}/sheets/${tab.sheetId}:copyTo`, {
+    method: 'POST',
+    body: JSON.stringify({ destinationSpreadsheetId: destinationId }),
+  });
+  await gfetch(`${SHEETS}/${destinationId}:batchUpdate`, {
+    method: 'POST',
+    body: JSON.stringify({
+      requests: [{ updateSheetProperties: { properties: { sheetId: copied.sheetId, title: tabTitle }, fields: 'title' } }],
+    }),
+  });
+}
+
+/** Dropdown options of a cell (data validation ONE_OF_LIST), or [] when it is free text. */
+export async function dropdownOptions(spreadsheetId: string, a1: string): Promise<string[]> {
+  if (fake()) return fakeStore().dropdowns?.[a1.replace(/\d+$/, '')] ?? [];
+  type V = { sheets?: { data?: { rowData?: { values?: { dataValidation?: { condition?: { type: string; values?: { userEnteredValue: string }[] } } }[] }[] }[] }[] };
+  const r = await gfetch<V>(`${SHEETS}/${spreadsheetId}?ranges=${enc(a1)}&fields=sheets.data.rowData.values.dataValidation`);
+  const cond = r.sheets?.[0]?.data?.[0]?.rowData?.[0]?.values?.[0]?.dataValidation?.condition;
+  return cond?.type === 'ONE_OF_LIST' ? (cond.values ?? []).map((v) => v.userEnteredValue) : [];
+}
+
+export interface DriveFile {
+  id: string;
+  name: string;
+  mimeType: string;
+  thumbnailLink?: string;
+  videoMediaMetadata?: { width?: number; height?: number; durationMillis?: string };
+}
+
+export async function listFolder(folderId: string): Promise<DriveFile[]> {
+  if (fake()) return fakeStore().drive?.[folderId] ?? [];
+  const q = enc(`'${folderId}' in parents and trashed = false`);
+  const r = await gfetch<{ files: DriveFile[] }>(
+    `https://www.googleapis.com/drive/v3/files?q=${q}&pageSize=50&supportsAllDrives=true&includeItemsFromAllDrives=true` +
+      `&fields=files(id,name,mimeType,thumbnailLink,videoMediaMetadata(width,height,durationMillis))&orderBy=name`,
+  );
+  return r.files;
+}
+
+export async function driveReachable(folderId: string): Promise<boolean> {
+  if (fake()) return true;
+  try {
+    await gfetch(`https://www.googleapis.com/drive/v3/files/${folderId}?fields=id&supportsAllDrives=true`);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/* ---------------- dev fixture (FAKE_SHEETS_FILE) ---------------- */
+
+interface FakeStore {
+  spreadsheets: Record<string, { title: string; tabs: Record<string, string[][]> }>;
+  dropdowns?: Record<string, string[]>;
+  drive?: Record<string, DriveFile[]>;
+}
+
+const fake = () => !!process.env.FAKE_SHEETS_FILE && process.env.NODE_ENV !== 'production';
+const g = globalThis as unknown as { __fakeSheets?: FakeStore };
+
+function fakeStore(): FakeStore {
+  g.__fakeSheets ??= JSON.parse(readFileSync(process.env.FAKE_SHEETS_FILE!, 'utf8')) as FakeStore;
+  return g.__fakeSheets;
+}
+
+function fakeSheet(id: string) {
+  const s = fakeStore().spreadsheets[id];
+  if (!s) throw new GoogleError('The caller does not have permission', 403);
+  return s;
+}
+
+function fakeMeta(id: string): SheetMeta {
+  const s = fakeSheet(id);
+  return { title: s.title, tabs: Object.keys(s.tabs).map((title, i) => ({ title, sheetId: i })) };
+}
+
+function parseA1(range: string) {
+  const m = range.match(/^(?:'((?:[^']|'')+)'|([^!]+))!([A-Z]+)(\d+)?(?::([A-Z]+)(\d+)?)?$/);
+  if (!m) throw new GoogleError(`Bad range ${range}`, 400);
+  const tab = (m[1] ?? m[2]).replace(/''/g, "'");
+  return { tab, c0: colToIndex(m[3]), r0: Number(m[4] ?? 1) - 1, c1: colToIndex(m[5] ?? m[3]), r1: m[6] ? Number(m[6]) - 1 : m[5] ? Infinity : Number(m[4] ?? 1) - 1 };
+}
+
+function fakeGet(id: string, range: string, render: Render): string[][] {
+  const { tab, c0, r0, c1, r1 } = parseA1(range);
+  const grid = fakeSheet(id).tabs[tab];
+  if (!grid) throw new GoogleError(`Unable to parse range: ${range}`, 400);
+  const rows = grid.slice(r0, r1 === Infinity ? undefined : r1 + 1).map((r) => r.slice(c0, c1 + 1).map((v) => (render === 'FORMATTED_VALUE' && v?.startsWith?.('=') ? '' : v ?? '')));
+  while (rows.length && rows[rows.length - 1].every((v) => !v)) rows.pop();
+  return rows;
+}
+
+function fakeUpdate(id: string, range: string, values: string[][]) {
+  const { tab, c0, r0 } = parseA1(range);
+  const grid = (fakeSheet(id).tabs[tab] ??= []);
+  values.forEach((row, i) => {
+    grid[r0 + i] ??= [];
+    row.forEach((v, j) => {
+      while (grid[r0 + i].length < c0 + j) grid[r0 + i].push('');
+      grid[r0 + i][c0 + j] = v;
+    });
+  });
+}
+
+function fakeAppend(id: string, range: string, values: string[][]) {
+  const { tab } = parseA1(range);
+  const grid = (fakeSheet(id).tabs[tab] ??= []);
+  grid.push(...values.map((r) => [...r]));
+}
