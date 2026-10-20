@@ -64,7 +64,6 @@ function missing(v: PlanRow['cells']): string[] {
   const out: string[] = [];
   // Only digits = a creator's post ID for a partnership ad.
   if (!/drive\.google\.com\//.test(v.Z) && !/^\d{8,}(_\d{8,})?$/.test(v.Z.trim())) out.push('Drive folder link or creator post ID');
-  if (!v.Y) out.push('URL');
   if (!v.AO) out.push('what to do');
   else if (v.AO !== 'SAME AS ROW ABOVE') {
     if (!v.AP) out.push('campaign');
@@ -362,7 +361,7 @@ function PanelContent({ clientId, plan, mode, problem, close }: { clientId: stri
                         ) : null}
                       </td>
                       <td style={{ minWidth: 220 }}>
-                        <input className="input" type="url" value={v.Y} onChange={(e) => set(r.row, 'Y', e.target.value)} aria-label={`URL row ${r.row}`} />
+                        <input className="input" type="url" value={v.Y} placeholder="Blank = Claude proposes one (or homepage)" onChange={(e) => set(r.row, 'Y', e.target.value)} aria-label={`URL row ${r.row}`} />
                       </td>
                       <td style={{ minWidth: 230 }}>
                         <select className="select" value={v.AO} onChange={(e) => set(r.row, 'AO', e.target.value)} aria-label={`What to do row ${r.row}`}>

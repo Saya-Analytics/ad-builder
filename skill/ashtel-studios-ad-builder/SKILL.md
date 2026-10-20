@@ -35,6 +35,7 @@ The Ad Builder app repeats this list at the end of every request it sends ("Reme
    - Research the live ads in AdManage and the sheet first.
    - Read the creative, and read the row's 📝 COPY NOTES (AV). If AV is blank, write from the creative alone.
    - Only make claims that appear on the landing page (Y), the brand's site, or in the creative.
+   - If Y is empty, propose a URL from the creative and the site, or use the homepage (5b), and include it in the review.
    - Build PAUSED.
    - **Send the copy for review (section 6b).**
 8. **Ask the people:** anything a person must do or decide goes in the Slack thread, tagged, and in the chat.
@@ -245,7 +246,7 @@ Run these checks in order and stop at the first failure for each row. (Intake, s
    - **Exception:** if Z is only digits, it's a creator post ID. The row is a partnership ad (section 9b). Skip checks 2–3 and the Drive intake (section 3) for it.
    - AT's formula may still show ✗ for Z on these rows. Ignore that one ✗.
 3. **The Drive folder can be opened, and it's organized** (section 3 already ran). If it's empty, can't be opened or isn't shared, report it. Dimensions always come from the real pixel size. Note any missing dimension, but don't block on it.
-4. **Y (URL), AF (brand), AC (start date) and AN (landing page) are filled.** A brand must have an ad account in CLAUDE SETUP.
+4. **AF (brand), AC (start date) and AN (landing page) are filled.** A brand must have an ad account in CLAUDE SETUP. **An empty Y (URL) is not a blocker:** Claude proposes one on build day (section 5b). In DAILY CHECK, report it as "Y empty: Claude will propose a URL".
 5. **The destination resolves live in Ads Manager.** See section 4. In DAILY CHECK mode, only look names up. Never create anything.
 6. **Copy.** If F is filled, the COPY row must exist and be Active. If F is empty, that's fine: Claude writes the copy on build day. Say so in the daily report.
 
@@ -284,6 +285,21 @@ Then analyze:
 - **Videos:** transcribe them (ffmpeg extracts the audio, plus any available transcriber such as whisper). If that fails, sample about 8 frames and read the on-screen text. Note which method you used.
 
 For each creative, write down what it shows, what it claims, the **angle** (the argument it makes) and the **hook**: the first spoken line, or the first on-screen text.
+
+### 5b · Empty URL (Y): propose one
+
+**Never change a Y that someone filled in.** Only do this when Y is empty:
+
+1. **From the analysis:** use the product, collection or offer the creative shows or talks about.
+2. **Find the page on the brand's site** (web fetch), for example the product page or the collection page. Start from the domain the brand's other rows use in Y (e.g. `https://shopmissa.com`). If that doesn't give one, use the brand's site from the config table.
+3. **Confident match** (the page is clearly the product or collection in the creative): write that URL into Y.
+4. **No confident match:** write the **homepage**, the domain root (e.g. `https://shopmissa.com/`).
+5. **Log it** in AU as `Y_PROPOSED:<url> (<product page|homepage>)`, and fill AN with a nickname for that URL if AN is blank.
+6. **Ask for a check:** list it in the copy review message (6b): "Row <r>: no URL, I used <url> (<why>). OK?"
+
+The copy is then grounded on that page, as section 6 requires.
+
+If the brand's site can't be found at all, skip the row and post "Row <r>: Y empty and no site for <brand>. Paste the URL in Y."
 
 ---
 
@@ -324,7 +340,7 @@ If F is already filled, use that copy set as it is.
 ### 6b · Copy review (every run that wrote copy)
 
 The ads are built PAUSED with the new copy. Then, **before closing the run**, ask for a review:
-- **Slack thread** (tagged): `📝 Copy for review · rows <ranges> · CPxxx–CPyyy`. Under it, for each copy set, give the headlines, primary texts and descriptions, plus the page each claim came from. End with "Reply OK, or tell me what to change."
+- **Slack thread** (tagged): `📝 Copy for review · rows <ranges> · CPxxx–CPyyy`. Under it, for each copy set, give the headlines, primary texts and descriptions, plus the page each claim came from, plus any URL you proposed for an empty Y (5b). End with "Reply OK, or tell me what to change."
 - **The chat:** the same review, as a table (Row · Copy set · Headline 1 · Primary text 1 · Description 1 · Source).
 
 Nothing is turned on by this skill, and the team only turns the ads on after the OK. When they ask for changes, run `REWRITE_COPY` for those rows, update the ads' copy (still PAUSED) and ask for review again.
@@ -397,6 +413,7 @@ Never move or re-upload the creator's content to Drive for these rows.
 - the new COPY / HOOKS rows
 - F and V on built rows
 - any blank AC, AD, AF–AN
+- Y, only when it was empty (section 5b)
 - A (the Ads Manager link)
 - B (the "Status after Claude builds" value, only after a successful launch)
 - AU: `CAMPAIGN_CREATED:<id> | ADSET_CREATED:<id> | AD_ID:<id> | <date> | <note>`

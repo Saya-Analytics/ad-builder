@@ -256,9 +256,10 @@ export function rowStatus(r: ApprovalRow, copy: Map<string, CopySet>): StatusRes
 function firstFailure(r: ApprovalRow, copy: Map<string, CopySet>): Problem | null {
   const partnership = isCreatorPostId(r.drive);
   // The sheet's AT formula only knows Drive links; a post ID in Z is fine.
-  if (partnership && r.check.startsWith('✗') && /\bZ\b|drive/i.test(r.check)) return firstFailureAfterZ(r, copy);
-  if (r.check.startsWith('✗')) return { title: r.check.replace(/^✗\s*/, ''), fix: 'Do what the sheet check (AT) says.', cols: ['AT'] };
-  if (r.check && !r.check.includes('✓')) return { title: `Sheet check says: ${r.check}`, fix: 'Do what AT says.', cols: ['AT'] };
+  // AT may also flag an empty Y; Claude proposes the URL (homepage if unsure), so that ✗ doesn't block either.
+  const atHandled = (partnership && /\bZ\b|drive/i.test(r.check)) || (!r.url && /\bY\b|URL/i.test(r.check));
+  if (r.check.startsWith('✗') && !atHandled) return { title: r.check.replace(/^✗\s*/, ''), fix: 'Do what the sheet check (AT) says.', cols: ['AT'] };
+  if (r.check && !r.check.includes('✓') && !atHandled) return { title: `Sheet check says: ${r.check}`, fix: 'Do what AT says.', cols: ['AT'] };
   if (partnership) return firstFailureAfterZ(r, copy);
   if (!r.drive) return { title: 'No creative link', fix: 'Paste the Drive folder link in Z.', cols: ['Z'] };
   if (!isDriveLink(r.drive)) return { title: 'Assets not in Drive', fix: 'Move to Drive and paste the folder link in Z.', cols: ['Z'] };
@@ -267,7 +268,7 @@ function firstFailure(r: ApprovalRow, copy: Map<string, CopySet>): Problem | nul
 }
 
 function firstFailureAfterZ(r: ApprovalRow, copy: Map<string, CopySet>): Problem | null {
-  if (!r.url) return { title: 'No website URL', fix: 'Fill Y with the product URL.', cols: ['Y'] };
+  // An empty Y is fine: Claude proposes a URL from the creative and the site (homepage if unsure).
   const dest = { AO: r.action, AP: r.campaign, AQ: r.adSet };
   const missing = (['AO', 'AP', 'AQ'] as const).filter((c) => !dest[c]);
   if (missing.length && r.action.toUpperCase() !== 'SAME AS ROW ABOVE') return { title: 'Destination not set', fix: `Fill ${missing.join(' + ')}.`, cols: missing };

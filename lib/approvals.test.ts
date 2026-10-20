@@ -145,3 +145,10 @@ test('every prompt carries the hard rules', async () => {
   assert.match(p, /landing page/);
   assert.match(p, /PARTNERSHIP/);
 });
+
+test('an empty URL does not block: Claude proposes one', () => {
+  const [r] = parseApprovals([row({ ...READY, Y: '', AT: '✗ Y · paste the website URL' })], 6);
+  assert.equal(rowStatus(r, copy).state, 'ready');
+  const [z] = parseApprovals([row({ ...READY, Y: '', Z: 'see brief', AT: '✗ Y · paste the website URL' })], 6);
+  assert.equal(rowStatus(z, copy).state, 'fix');
+});

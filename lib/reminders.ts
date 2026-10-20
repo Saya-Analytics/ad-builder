@@ -10,6 +10,7 @@ const ALWAYS = [
   'Destinations (AO–AQ): look them up live in Ads Manager, all statuses, exact names. USE creates nothing; CREATE creates exactly that, once. Never guess.',
   'Drive: Z must be the creative’s own folder; real pixel dimensions, never the filename. Never trash or overwrite a file.',
   'Rows sharing one Drive link (e.g. 81, 82, 83): organize the folder FIRST, then one row per creative: reuse those rows in order, insert rows for extra creatives (formulas copied from the row above), report leftover rows. The row count means nothing.',
+  'Empty Y (URL): after analyzing the creative, find the matching product/collection page on the brand’s site and write it in Y; if unsure, use the homepage. Never change a filled Y. Log Y_PROPOSED in AU and list it in the review.',
   'If Z is only digits, it’s a creator’s post ID: build a PARTNERSHIP ad on that post (check partnership permissions first), not a Drive upload.',
   'Anything a person must do or decide: ask in the Slack thread, tagged (CLAUDE SETUP tags), with the exact rows and cells, and say it in this chat too. Don’t stall the other rows.',
   'Finish: update this command’s COMMANDS row (G, I, J, K) and post the result in today’s Slack thread for the client.',
