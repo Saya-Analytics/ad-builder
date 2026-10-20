@@ -175,7 +175,24 @@ The standard dimensions are **1x1 (square), 4x5 (feed) and 9x16 (stories/reels)*
 
 **Step 2: decide what the link is.**
 - **Already organized**: one creative, every file the same footage in different dimensions. If the names already follow the target pattern, leave them. Otherwise rename them (step 4).
-- **A single file**: one creative with one dimension.
+- **A single file** (Z is a `/file/d/…` link): one creative with one dimension. Create a folder for it named per the pattern, copy the file into it (don't move a file you don't own), and point Z at the folder.
+- **Subfolders**: Z holds subfolders, e.g. `Carousel_A/` and `Carousel_B/`, or one folder per creator.
+  - **Look inside every subfolder.** Each one that holds a single creative counts as one creative: a carousel, one video in several sizes, or one static.
+  - Rename it to the pattern, keep it as it is inside, and give it its own row (5b).
+  - A subfolder that is itself a mix of creatives is a dump. Organize it.
+- **A carousel**: several **images** in one folder that are **different pictures at the same size**. Typical signs:
+  - The files are numbered in order (`1.png … 6.png`, `_01`, `_02`…).
+  - The first image is a cover or hook (the title or offer).
+  - The other images are cards: one product each, with the same layout or design.
+  - AK may already say `Carousel`.
+
+  **A carousel is ONE creative, not a dump and not dimensions.** Never split it into rows or rename its cards into `_1x1`/`_4x5`. Keep the card order: rename the files `01_…`, `02_…` in their current order. Set AK to `Carousel` if it's blank.
+
+  **Look at every image before deciding.** Open each file (AdManage import + `view_image`, or download it and view it). Never decide from the filenames or the count alone.
+  - Same picture at different aspect ratios → dimensions of one creative.
+  - Different pictures at the same size, in a sequence → a carousel.
+  - Different, unrelated pictures (not a sequence) → several statics, a dump.
+  - Still unsure → treat it as a carousel if AK says Carousel. Otherwise ask in Slack: "Row <r>: carousel or separate statics?"
 - **A dump**: loose files that are clearly more than one creative (different stems, different footage or durations, different creators), or nested folders that aren't one-per-creative. Organize it (steps 3–4).
 
 **Step 3: group a dump into creatives.** Same creative = same content in different dimensions. Work through these signals in order:
@@ -282,6 +299,12 @@ Get the files into AdManage first:
 
 Then analyze:
 - **Images:** read the on-image copy word for word. Note the product, packaging, person, setting and any badge or price flash.
+- **Carousels:** **view every card, in order.** For each card, write down:
+  - its position;
+  - the product shown, with its exact name as printed on the card (e.g. "aoa cheeky miracle blush – warm sunset");
+  - its on-image text.
+
+  The cover card (usually card 1) carries the hook and angle. The copy must fit the whole set ("6 blush picks starting at $1" only if the cover or the site says it), not just card 1.
 - **Videos:** transcribe them (ffmpeg extracts the audio, plus any available transcriber such as whisper). If that fails, sample about 8 frames and read the on-screen text. Note which method you used.
 
 For each creative, write down what it shows, what it claims, the **angle** (the argument it makes) and the **hook**: the first spoken line, or the first on-screen text.
@@ -386,6 +409,13 @@ Then `launch_ads`:
 - `title` = Headline 1, `description` = Primary text 1, `adDescription` = Description 1, `cta` = X in the platform enum (e.g. `SHOP_NOW`), `link` = Y
 - **Text variations:** if the copy set has more than one headline, primary text or description, check `get_launch_reference` (topic `formats`). If multiple text options are supported, pass all the non-empty ones. Otherwise use variant 1 and note that in the report.
 - `media`: every dimension, each with `url`, `type`, `width` and `height`. Use `type: "multi"` when there are 2 or more dimensions (feed gets 1x1/4x5, stories and reels get 9x16), or `single` for one file.
+- **Carousel (AK = Carousel):**
+  - Launch it as a carousel ad. Check `get_launch_reference` (topic `formats`) for the carousel shape.
+  - Add one card per image, **in folder order**.
+  - Each card's headline is the product shown on it. Use the name exactly as on the site, or leave it empty.
+  - Each card's link is Y. Use the product's own page only when you found it on the site (5b).
+  - The ad's primary text comes from the COPY set.
+  - Never reorder, drop or crop cards. If the format caps the number of cards, use the first ones and report the rest.
 - **ALWAYS PAUSED.** Never launch anything ACTIVE.
 
 Poll `get_batch_status` (`waitSeconds=25`) until it returns success or error. Record the `adId` and `adsManagerUrl` for each ad.

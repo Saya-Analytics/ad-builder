@@ -152,3 +152,8 @@ test('an empty URL does not block: Claude proposes one', () => {
   const [z] = parseApprovals([row({ ...READY, Y: '', Z: 'see brief', AT: '✗ Y · paste the website URL' })], 6);
   assert.equal(rowStatus(z, copy).state, 'fix');
 });
+
+test('a Drive file link is not a blocker (Claude folders it)', () => {
+  const [r] = parseApprovals([row({ ...READY, Z: 'https://drive.google.com/file/d/12B5MWo/view' })], 6);
+  assert.equal(rowStatus(r, copy).state, 'ready');
+});

@@ -47,6 +47,9 @@ export default async function RowDetail({ params }: { params: Promise<{ clientId
   ]);
   const videos = (files ?? []).filter((f) => f.mimeType.startsWith('video/'));
   const video: DriveFile | undefined = videos.find((f) => /9x16/i.test(f.name)) ?? videos[0];
+  // Several images and no video: usually a carousel (cards in name order) or one static in several sizes.
+  const images = (files ?? []).filter((f) => f.mimeType.startsWith('image/')).sort((x, y) => x.name.localeCompare(y.name, undefined, { numeric: true }));
+  const firstImage = !video ? images[0] : undefined;
 
   const headline = set?.headlines[0] ?? r.headlines[0] ?? '';
   const primary = set?.primaryTexts[0] ?? r.primaryTexts[0] ?? '';
@@ -81,12 +84,30 @@ export default async function RowDetail({ params }: { params: Promise<{ clientId
         <div style={{ flex: '0 1 260px', display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
           {video ? (
             <iframe className="preview-video" src={`https://drive.google.com/file/d/${video.id}/preview`} title={`Video: ${video.name}`} allow="autoplay" />
+          ) : firstImage ? (
+            <iframe className="preview-video" src={`https://drive.google.com/file/d/${firstImage.id}/preview`} title={`Image: ${firstImage.name}`} />
           ) : (
             <div className="preview-video" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 22, color: '#cccccc', fontSize: 14, textAlign: 'center' }}>
-              {folder ? (files === null ? 'Can’t open the Drive folder. Share it with the service account.' : 'No video in this folder.') : 'No Drive folder in Z.'}
+              {folder ? (files === null ? 'Can’t open the Drive folder. Share it with the service account.' : 'No video or image in this folder.') : 'No Drive folder in Z.'}
             </div>
           )}
           {video ? <span className="xs muted">{video.name}</span> : null}
+          {firstImage && images.length > 1 ? (
+            <div className="stack" style={{ gap: 2 }}>
+              <span className="xs strong">
+                {images.length} images{r.adType.toLowerCase() === 'carousel' ? ' · carousel' : ''}. Claude views each one: a numbered sequence is one carousel (cards in this order), the same image in other sizes is dimensions.
+              </span>
+              <span className="xs muted" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {images.map((f, i) => (
+                  <a key={f.id} href={`https://drive.google.com/file/d/${f.id}/view`} target="_blank" rel="noreferrer">
+                    {i + 1}. {f.name}
+                  </a>
+                ))}
+              </span>
+            </div>
+          ) : firstImage ? (
+            <span className="xs muted">{firstImage.name}</span>
+          ) : null}
           {r.drive ? (
             <a href={r.drive} target="_blank" rel="noreferrer" className="small">
               Open Drive folder ›

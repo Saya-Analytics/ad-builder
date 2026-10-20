@@ -263,7 +263,7 @@ function firstFailure(r: ApprovalRow, copy: Map<string, CopySet>): Problem | nul
   if (partnership) return firstFailureAfterZ(r, copy);
   if (!r.drive) return { title: 'No creative link', fix: 'Paste the Drive folder link in Z.', cols: ['Z'] };
   if (!isDriveLink(r.drive)) return { title: 'Assets not in Drive', fix: 'Move to Drive and paste the folder link in Z.', cols: ['Z'] };
-  if (!driveFolderId(r.drive)) return { title: 'Z is a file, not a folder', fix: 'Paste the creative’s Drive folder link in Z.', cols: ['Z'] };
+  // A Drive file link is fine: Claude puts the file in its own folder when it organizes Drive.
   return firstFailureAfterZ(r, copy);
 }
 
@@ -299,7 +299,7 @@ export function pipelineSteps(r: ApprovalRow, copy: Map<string, CopySet>): Step[
         : driveFolderId(r.drive)
           ? r.log.organized ?? 'Z points to a folder'
           : r.drive
-            ? 'Z is not a folder link'
+            ? isDriveLink(r.drive) ? 'A single Drive file: Claude puts it in its own folder' : 'Z is not a Drive link'
             : 'Z is empty',
       done: !!driveFolderId(r.drive) || isCreatorPostId(r.drive),
     },
