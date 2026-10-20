@@ -69,6 +69,19 @@ p { margin: 0; }
 .navbtn .note { margin-left: auto; font-size: 12px; color: var(--muted); font-weight: 400; }
 .badge-red { margin-left: auto; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: #e5332a; color: #fff; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
 .btn-claude { background: #e5332a; }
+
+/* Searchable campaign / ad set picker */
+.combo { display: block; position: relative; }
+.combo-list { position: fixed; z-index: 1000; max-height: 320px; overflow-y: auto; background: var(--card, #fff); border: 1px solid rgba(0, 0, 0, 0.12); border-radius: 14px; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16); padding: 6px; }
+.combo-filter { display: flex; align-items: center; gap: 6px; padding: 6px 10px; color: var(--muted); }
+.combo-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 9px 10px; border: 0; background: none; border-radius: 10px; font: inherit; font-size: 14px; color: var(--ink); cursor: pointer; min-height: 40px; }
+.combo-item.is-active, .combo-item:hover { background: rgba(0, 0, 0, 0.05); }
+.combo-item[aria-selected='true'] .combo-name { font-weight: 600; }
+.combo-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.combo-note { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.combo-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: #c7c7cc; }
+.combo-dot.on { background: #34c759; }
+.combo-empty { padding: 10px; }
 .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 
 .switcher { position: relative; }

@@ -1,3 +1,5 @@
+import { isLive, metaActivity } from '@/lib/activity';
+import type { ComboOption } from '@/components/Combo';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { loadClientState } from '@/lib/data';
@@ -45,6 +47,14 @@ export default async function RowDetail({ params }: { params: Promise<{ clientId
     dropdownOptions(sheet, cellA1('B')).catch(() => []),
     ...DEST.map(([col]) => dropdownOptions(sheet, cellA1(col)).catch(() => [])),
   ]);
+  const act = await metaActivity(sheet);
+  const withLive = (names: string[], col: string): ComboOption[] =>
+    names
+      .map((name) => {
+        const last = (col === 'AP' ? act.campaigns.get(name) : act.adSets.get(`|${name}`)) ?? '';
+        return { name, last, live: isLive(last, act.asOf) };
+      })
+      .sort((x, y) => Number(y.live) - Number(x.live) || y.last.localeCompare(x.last) || x.name.localeCompare(y.name));
   const videos = (files ?? []).filter((f) => f.mimeType.startsWith('video/'));
   const video: DriveFile | undefined = videos.find((f) => /9x16/i.test(f.name)) ?? videos[0];
   // Several images and no video: usually a carousel (cards in name order) or one static in several sizes.
@@ -193,7 +203,7 @@ export default async function RowDetail({ params }: { params: Promise<{ clientId
         </div>
         <div className="grid-cards" style={{ gap: 16 }}>
           {DEST.map(([col, label, key, hint], i) => (
-            <EditableField key={col} id={col} label={`${label} (${col})`} value={r[key]} options={destOptions[i]} save={save(col)} hint={hint || undefined} allowOther={col !== 'AO'} />
+            <EditableField key={col} id={col} label={`${label} (${col})`} value={r[key]} options={destOptions[i]} save={save(col)} hint={hint || undefined} allowOther={col !== 'AO'} searchOptions={col === 'AP' || col === 'AQ' || col === 'AR' ? withLive(destOptions[i], col) : undefined} />
           ))}
         </div>
         <EditableField

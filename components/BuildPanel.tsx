@@ -6,6 +6,7 @@ import { askClaudeToFix, getBuildPlan, saveRowEdits, submitBuild, type BuildPlan
 import type { SendResult } from '@/app/actions';
 import { CommandOutcome } from './Commands';
 import { Icon } from './Icon';
+import { Combo, type ComboOption } from './Combo';
 
 type Col = keyof PlanRow['cells'];
 const COL_NAME: Record<Col, string> = {
@@ -19,44 +20,13 @@ const COL_NAME: Record<Col, string> = {
   AV: 'Copy notes',
 };
 
-const OTHER = '__other__';
-
 /**
- * A real dropdown of what exists in Ads Manager (from META_LIST), with "Type a different name…"
- * for names that aren't listed yet. Datalists were unreliable (filtered, invisible in Safari/dialogs).
+ * Campaign / ad set picker: searchable, live ones first (from RAW_META spend). `free` = a name
+ * Claude will create, so it's a plain text box.
  */
-function Pick({ value, options, onChange, label, placeholder, disabled, free }: { value: string; options: string[]; onChange: (v: string) => void; label: string; placeholder: string; disabled?: boolean; free?: boolean }) {
-  const [typing, setTyping] = useState(false);
-  if (free || typing || !options.length)
-    return (
-      <span className="stack" style={{ gap: 2 }}>
-        <input className="input" value={value} placeholder={placeholder} disabled={disabled} onChange={(e) => onChange(e.target.value)} aria-label={label} />
-        {!free && options.length && !disabled ? (
-          <button type="button" className="linkbtn xs" style={{ minHeight: 28 }} onClick={() => setTyping(false)}>
-            Pick from the list ›
-          </button>
-        ) : null}
-      </span>
-    );
-  const listed = !value || options.includes(value);
-  return (
-    <select
-      className="select"
-      value={value}
-      disabled={disabled}
-      aria-label={label}
-      onChange={(e) => (e.target.value === OTHER ? setTyping(true) : onChange(e.target.value))}
-    >
-      <option value="">{placeholder}</option>
-      {!listed ? <option value={value}>{value} (not in the list)</option> : null}
-      {options.map((o) => (
-        <option key={o} value={o}>
-          {o}
-        </option>
-      ))}
-      <option value={OTHER}>✎ Type a different name…</option>
-    </select>
-  );
+function Pick({ value, options, onChange, label, placeholder, disabled, free }: { value: string; options: ComboOption[]; onChange: (v: string) => void; label: string; placeholder: string; disabled?: boolean; free?: boolean }) {
+  if (free) return <input className="input" value={value} placeholder={placeholder} disabled={disabled} onChange={(e) => onChange(e.target.value)} aria-label={label} />;
+  return <Combo value={value} options={options} onChange={onChange} label={label} placeholder={placeholder} disabled={disabled} />;
 }
 
 /** What would still stop Claude, judged from the panel's values (same rules as the AT check). */
@@ -149,7 +119,6 @@ function PanelContent({ clientId, plan, mode, problem, close }: { clientId: stri
   const [saved, setSaved] = useState<SaveResult | null>(null);
   const [sent, setSent] = useState<SendResult | null>(null);
 
-  const campaignNames = plan.campaigns.map((c) => c.name);
   const adSetsFor = (campaign: string) => plan.campaigns.find((c) => c.name === campaign)?.adSets ?? plan.adSets;
   const set = (row: number, col: Col, v: string) => setValues((s) => ({ ...s, [row]: { ...s[row], [col]: v } }));
   const toggle = (row: number) =>
@@ -278,7 +247,7 @@ function PanelContent({ clientId, plan, mode, problem, close }: { clientId: stri
                 </select>
                 <Pick
                   value={bulk.AP ?? ''}
-                  options={campaignNames}
+                  options={plan.campaigns}
                   free={bulk.AO === 'CREATE NEW CAMPAIGN + NEW AD SET'}
                   placeholder={bulk.AO === 'CREATE NEW CAMPAIGN + NEW AD SET' ? 'New campaign name' : 'Campaign…'}
                   onChange={(v) => setBulk({ ...bulk, AP: v })}
@@ -301,6 +270,11 @@ function PanelContent({ clientId, plan, mode, problem, close }: { clientId: stri
             </section>
           ) : null}
 
+          {plan.liveAsOf ? (
+            <p className="xs muted" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span className="combo-dot on" aria-hidden="true" /> Live = spent in the last 3 days of RAW_META (data through {plan.liveAsOf}). Type in any campaign or ad set box to search.
+            </p>
+          ) : null}
           {!plan.campaigns.length ? (
             <p className="small muted">No campaigns in META_LIST yet (it lists what has spent in RAW_META), so type the names exactly as in Ads Manager.</p>
           ) : null}
@@ -374,7 +348,7 @@ function PanelContent({ clientId, plan, mode, problem, close }: { clientId: stri
                       <td style={{ minWidth: 220 }}>
                         <Pick
                           value={v.AP}
-                          options={campaignNames}
+                          options={plan.campaigns}
                           free={v.AO === 'CREATE NEW CAMPAIGN + NEW AD SET'}
                           placeholder={v.AO === 'CREATE NEW CAMPAIGN + NEW AD SET' ? 'New campaign name' : 'Pick a campaign…'}
                           disabled={v.AO === 'SAME AS ROW ABOVE'}

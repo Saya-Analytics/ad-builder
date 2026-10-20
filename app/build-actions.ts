@@ -6,6 +6,7 @@ import { batchGet, dropdownOptions, getMeta } from '@/lib/google';
 import { loadClientState } from '@/lib/data';
 import { driveFolderId, isBuilding, rowRanges, type ApprovalRow } from '@/lib/approvals';
 import { setupValue, slackChannel } from '@/lib/setup';
+import { isLive, metaActivity } from '@/lib/activity';
 import { safeWriteMany, type CellResult } from '@/lib/writes';
 import { bust } from '@/lib/cache';
 import { sendCommand, type SendResult } from './actions';
@@ -28,14 +29,23 @@ export interface PlanRow {
   sharedWith: number[];
 }
 
+/** A pickable campaign or ad set name, with its spend status from RAW_META. */
+export interface Option {
+  name: string;
+  live: boolean;
+  last: string;
+}
+
 export interface BuildPlan {
   ok: boolean;
   error?: string;
   clientName: string;
   rows: PlanRow[];
   actions: string[];
-  campaigns: { name: string; adSets: string[] }[];
-  adSets: string[];
+  campaigns: { name: string; adSets: Option[]; live: boolean; last: string }[];
+  adSets: Option[];
+  /** Newest date in RAW_META: "live" = spent within LIVE_DAYS of it. */
+  liveAsOf: string | null;
   chatLink: string | null;
   intervalMinutes: number;
   slack: boolean;
@@ -62,7 +72,7 @@ function toPlanRow(r: ApprovalRow, st: { state: string; problems: PlanRow['probl
 
 /** Rows waiting to be built (or only `only`), with fresh data, plus the live campaign › ad set pairs. */
 export async function getBuildPlan(clientId: string, only?: number[]): Promise<BuildPlan> {
-  const empty: BuildPlan = { ok: false, clientName: '', rows: [], actions: ACTIONS, campaigns: [], adSets: [], chatLink: null, intervalMinutes: 60, slack: false };
+  const empty: BuildPlan = { ok: false, clientName: '', rows: [], actions: ACTIONS, campaigns: [], adSets: [], liveAsOf: null, chatLink: null, intervalMinutes: 60, slack: false };
   const pre = await loadClientState(clientId);
   if (!pre.ok) return { ...empty, error: pre.error };
   bust(pre.state.client.sheetId); // the panel always works on the sheet as it is now
@@ -84,7 +94,11 @@ export async function getBuildPlan(clientId: string, only?: number[]): Promise<B
     });
 
   let campaigns: BuildPlan['campaigns'] = [];
-  let adSets: string[] = [];
+  let adSets: Option[] = [];
+  const act = await metaActivity(s.client.sheetId);
+  const opt = (name: string, last: string): Option => ({ name, last, live: isLive(last, act.asOf) });
+  // Live first, then most recent spend, then name.
+  const order = (x: Option, y: Option) => Number(y.live) - Number(x.live) || y.last.localeCompare(x.last) || x.name.localeCompare(y.name);
   let actions = ACTIONS;
   try {
     const meta = await getMeta(s.client.sheetId);
@@ -96,8 +110,14 @@ export async function getBuildPlan(clientId: string, only?: number[]): Promise<B
         if (!map.has(c)) map.set(c, new Set());
         if (a) map.get(c)!.add(a);
       }
-      campaigns = [...map.entries()].map(([name, set]) => ({ name, adSets: [...set].sort() })).sort((x, y) => x.name.localeCompare(y.name));
-      adSets = [...new Set(campaigns.flatMap((c) => c.adSets))].sort();
+      campaigns = [...map.entries()]
+        .map(([name, set]) => ({
+          ...opt(name, act.campaigns.get(name) ?? ''),
+          adSets: [...set].map((a) => opt(a, act.adSets.get(`${name}|${a}`) ?? '')).sort(order),
+        }))
+        .sort(order);
+      const all = new Set(campaigns.flatMap((c) => c.adSets.map((a) => a.name)));
+      adSets = [...all].map((a) => opt(a, act.adSets.get(`|${a}`) ?? '')).sort(order);
     }
     const first = rows[0]?.row ?? s.rows[0]?.row;
     if (first) {
@@ -115,6 +135,7 @@ export async function getBuildPlan(clientId: string, only?: number[]): Promise<B
     actions,
     campaigns,
     adSets,
+    liveAsOf: act.asOf,
     chatLink: setupValue(s.setup, 'claudeChat') || null,
     intervalMinutes: Number(setupValue(s.setup, 'commandInterval')) || 60,
     slack: !!process.env.SLACK_BOT_TOKEN && !!process.env.CLAUDE_SLACK_USER_ID,

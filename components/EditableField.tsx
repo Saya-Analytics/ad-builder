@@ -1,4 +1,5 @@
 'use client';
+import { Combo, type ComboOption } from './Combo';
 
 import { useEffect, useState, useTransition } from 'react';
 import type { WriteResult } from '@/lib/writes';
@@ -16,6 +17,7 @@ export function EditableField({
   dark,
   hint,
   allowOther,
+  searchOptions,
   id,
   placeholder,
 }: {
@@ -26,6 +28,8 @@ export function EditableField({
   type?: 'text' | 'url';
   dark?: boolean;
   hint?: string;
+  /** Searchable picker (campaigns / ad sets) instead of a plain dropdown. */
+  searchOptions?: ComboOption[];
   /** Adds “Type a different name…” to the dropdown (for names Claude will create). */
   allowOther?: boolean;
   id?: string;
@@ -65,7 +69,11 @@ export function EditableField({
     <div className={`field${dark ? ' on-dark' : ''}`} id={id}>
       <label htmlFor={`${id ?? label}-input`}>{label}</label>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {opts ? (
+        {searchOptions?.length ? (
+          <span style={{ flex: '1 1 220px' }}>
+            <Combo value={draft} options={searchOptions} onChange={setDraft} label={label} placeholder="Search or type…" />
+          </span>
+        ) : opts ? (
           <select autoComplete="off" id={`${id ?? label}-input`} className="select" style={{ flex: '1 1 220px' }} value={draft} onChange={(e) => (e.target.value === '__other__' ? setTyping(true) : setDraft(e.target.value))}>
             {!draft ? <option value="">—</option> : null}
             {opts.map((o) => (
