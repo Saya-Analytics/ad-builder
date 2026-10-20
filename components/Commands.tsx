@@ -6,11 +6,25 @@ import { sendCommand, nudgeCommand, type SendResult } from '@/app/actions';
 import type { CommandType } from '@/lib/commands';
 import { Icon } from './Icon';
 
-function ClaudeChatButton({ href }: { href: string }) {
+/** Copies the prompt and opens the chat: Claude only works when it gets a message there. */
+function ClaudeChatButton({ href, prompt }: { href: string; prompt?: string }) {
+  const [copied, setCopied] = useState(false);
   return (
-    <a href={href} target="_blank" rel="noreferrer" className="btn btn-sm btn-claude" style={{ alignSelf: 'flex-start', color: '#fff' }}>
-      Open the Claude session ›
-    </a>
+    <span className="stack" style={{ gap: 4, alignItems: 'flex-start' }}>
+      <a
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        className="btn btn-sm btn-claude"
+        style={{ color: '#fff' }}
+        onClick={() => {
+          if (prompt) navigator.clipboard?.writeText(prompt).then(() => setCopied(true), () => {});
+        }}
+      >
+        Copy prompt + open the Claude session ›
+      </a>
+      <span className="xs muted">{copied ? 'Copied. Paste it in the chat and press Enter.' : 'Then paste in the chat and press Enter: Claude runs it right away.'}</span>
+    </span>
   );
 }
 
@@ -40,7 +54,7 @@ export function CommandOutcome({ result, dark }: { result: SendResult; dark?: bo
       <div className={dark ? 'on-dark small' : 'notice small'} role="status">
         <strong>Sent to Claude in Slack ✓</strong>
         <span>Claude replies in the thread; the result shows up here and in the sheet.</span>
-        {result.chatLink ? <ClaudeChatButton href={result.chatLink} /> : null}
+        {result.chatLink ? <ClaudeChatButton href={result.chatLink} prompt={result.prompt} /> : null}
       </div>
     );
   }
@@ -58,7 +72,7 @@ export function CommandOutcome({ result, dark }: { result: SendResult; dark?: bo
           {copied ? 'Prompt copied ✓' : 'Copy prompt ›'}
         </button>
         {result.chatLink ? (
-          <ClaudeChatButton href={result.chatLink} />
+          <ClaudeChatButton href={result.chatLink} prompt={result.prompt} />
         ) : (
           <span className="muted">Add the Claude chat link in Settings to open it from here.</span>
         )}

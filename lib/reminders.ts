@@ -42,3 +42,12 @@ export function reminders(command: string): string[] {
 export function remindersBlock(command: string): string {
   return ['Remember (hard rules of the skill):', ...reminders(command).map((r) => `• ${r}`)].join('\n');
 }
+
+/** What to paste in the client's Claude chat to run everything waiting in COMMANDS. */
+export function queuePrompt(clientName: string, sheetId: string): string {
+  return [
+    `run ad-builder for ${clientName}, sheet https://docs.google.com/spreadsheets/d/${sheetId}: process every queued row in the COMMANDS tab (oldest first), then today's mode.`,
+    '',
+    remindersBlock('BUILD'),
+  ].join('\n');
+}
