@@ -1,6 +1,6 @@
 import 'server-only';
 import { isStale } from './commands.ts';
-import { setupValue } from './setup.ts';
+import { setupValue, slackChannel } from './setup.ts';
 import { permalink, plain, threadReplies } from './slack.ts';
 import type { ClientState } from './data.ts';
 import type { TrackedCommand } from '@/components/CommandTracker';
@@ -12,7 +12,7 @@ export function commandInterval(s: ClientState): number {
 
 /** Newest first. For open Slack commands, adds Claude's latest reply in the thread. */
 export async function trackedCommands(s: ClientState, limit = 20): Promise<TrackedCommand[]> {
-  const channel = setupValue(s.setup, 'slackChannelId');
+  const channel = slackChannel(s.setup);
   const interval = commandInterval(s);
   const list = [...s.commands].sort((a, b) => b.requestedAt.localeCompare(a.requestedAt)).slice(0, limit);
   return Promise.all(

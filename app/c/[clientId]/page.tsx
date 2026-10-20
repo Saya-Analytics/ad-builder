@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { loadClientState } from '@/lib/data';
 import { activeRows, blockers, brandCounts, builds, counts, daysToBuild, greeting, longDate, organizedCount } from '@/lib/summary';
 import { copyCode, rowRanges } from '@/lib/approvals';
-import { setupValue } from '@/lib/setup';
+import { setupValue, slackChannel } from '@/lib/setup';
 import { commandInterval, trackedCommands } from '@/lib/tracked';
 import { AskClaude, CommandButton, type Suggestion } from '@/components/Commands';
 import { CommandTracker } from '@/components/CommandTracker';
@@ -46,7 +46,7 @@ export default async function Home({ params, searchParams }: { params: Promise<{
   const build = daysToBuild(s);
   const needs = blockers(s, commandInterval(s), base);
   const last = builds(s)[0];
-  const channel = setupValue(s.setup, 'slackChannelId');
+  const channel = slackChannel(s.setup);
   const commands = await trackedCommands(s, 5);
   const brands = brandCounts(s, rows);
   const firstBrand = brands.find((b) => b.n)?.brand;

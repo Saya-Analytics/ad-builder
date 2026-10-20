@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { loadClientState } from '@/lib/data';
 import { adsManagerUrl, builds, longDate, type Build } from '@/lib/summary';
 import { copyCode, driveFolderId, hookCode, rowRanges } from '@/lib/approvals';
-import { setupValue } from '@/lib/setup';
+import { setupValue, slackChannel } from '@/lib/setup';
 import { permalink } from '@/lib/slack';
 import { CommandButton } from '@/components/Commands';
 
@@ -37,7 +37,7 @@ export default async function Builds({ params }: { params: Promise<{ clientId: s
   if (!loaded.ok) return null;
   const s = loaded.state;
   const list = builds(s);
-  const channel = setupValue(s.setup, 'slackChannelId');
+  const channel = slackChannel(s.setup);
 
   if (!list.length) {
     return (

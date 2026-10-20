@@ -49,7 +49,8 @@ export function CommandOutcome({ result, dark }: { result: SendResult; dark?: bo
       <strong>Sent to Claude ✓</strong>
       <span>
         It’s in the COMMANDS tab. Claude’s scheduled task picks it up {when} and writes the result back here.
-        {result.slackError ? ' (Slack didn’t answer, so it went to the queue.)' : ''}
+        {result.posted ? ' The team was notified in Slack.' : ''}
+        {result.slackError ? ' (Slack didn’t answer, so it’s only in the queue.)' : ''}
       </span>
       <span>Want it now? Paste the prompt in the client’s Claude chat.</span>
       <span className="wrap" style={{ alignItems: 'center', gap: 16 }}>
@@ -109,7 +110,7 @@ export function NudgeButton({ clientId, commandId }: { clientId: string; command
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       <button type="button" className="linkbtn" disabled={pending} onClick={() => start(async () => setResult(await nudgeCommand(clientId, commandId)))}>
-        {pending ? 'Posting…' : 'Post the Slack tag again ›'}
+        {pending ? 'Posting…' : 'Post it in Slack again ›'}
       </button>
       {result ? <CommandOutcome result={result} /> : null}
     </div>

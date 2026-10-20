@@ -7,7 +7,7 @@ import { addTab, appendValues, batchGet, copyTabFrom, getMeta, GoogleError, serv
 import { getClient, loadClients, loadClientState, masterSheetId, MASTER_TAB, todayIn } from '@/lib/data';
 import { safeWrite, type WriteResult } from '@/lib/writes';
 import { COMMAND_HEADER, COMMAND_TYPES, commandPrompt, newCommandId, type CommandType } from '@/lib/commands';
-import { BRANDS_HEADER, onboardingDefaults, parseBrandLines, parseSetup, SETUP_FIELDS, SETUP_RANGE, SHARED_SKILL, setupTemplate, setupValue, type SetupKey } from '@/lib/setup';
+import { BRANDS_HEADER, onboardingDefaults, parseBrandLines, parseSetup, SETUP_FIELDS, SETUP_RANGE, SHARED_SKILL, setupTemplate, setupValue, type SetupKey, slackChannel } from '@/lib/setup';
 import { bust } from '@/lib/cache';
 import { postMessage, slackConfigured, todaysParent } from '@/lib/slack';
 import { currentUser } from '@/lib/auth';
@@ -67,6 +67,8 @@ export interface SendResult {
   id?: string;
   via?: 'slack' | 'sheet';
   slackError?: string;
+  /** Posted in the team's Slack channel (tag or notice). */
+  posted?: boolean;
   prompt?: string;
   chatLink?: string;
   error?: string;
@@ -86,13 +88,18 @@ async function tagClaude(
   clientName: string,
   timezone: string,
   prompt: string,
-): Promise<{ ts: string; thread: string }> {
+  notice: string,
+): Promise<{ ts: string; thread: string; tagged: boolean }> {
+  // With Claude installed in Slack, tag it so it runs now. Without it, post a notice for the
+  // team; Claude's scheduled task picks the command up from COMMANDS.
   const claude = process.env.CLAUDE_SLACK_USER_ID;
-  if (!claude) throw new Error('CLAUDE_SLACK_USER_ID is not set');
   const parent = await todaysParent(channel, clientName, localMidnightEpoch(timezone)).catch(() => null);
-  const ts = await postMessage(channel, `<@${claude}> ${prompt}`, parent ?? undefined);
-  return { ts, thread: parent ?? ts };
+  const ts = await postMessage(channel, claude ? `<@${claude}> ${prompt}` : notice, parent ?? undefined);
+  return { ts, thread: parent ?? ts, tagged: !!claude };
 }
+
+const noticeText = (clientName: string, command: string, args: string, id: string, by: string) =>
+  `📥 *${clientName}* · ${command}${args ? `: ${args}` : ''}\nRequested in the Ad Builder${by ? ` by ${by}` : ''} · ${id}. Claude picks it up from the COMMANDS tab.`;
 
 /**
  * Leaves a command where Claude will see it. Slack tag first; the COMMANDS row is always
@@ -109,7 +116,7 @@ export async function sendCommand(clientId: string, command: CommandType, args =
   const skill = setupValue(s.setup, 'skill') || SHARED_SKILL;
   const prompt = commandPrompt({ skill, command, args: args.trim(), clientName, sheetId: s.client.sheetId, id });
   const chatLink = setupValue(s.setup, 'claudeChat') || undefined;
-  const channel = setupValue(s.setup, 'slackChannelId');
+  const channel = slackChannel(s.setup);
 
   try {
     if (s.missingTabs.includes(TABS.commands)) await createCommandsTab(s.client.sheetId);
@@ -118,13 +125,15 @@ export async function sendCommand(clientId: string, command: CommandType, args =
   }
 
   let via: 'slack' | 'sheet' = 'sheet';
+  let posted = false;
   let slackTs = '';
   let slackThread = '';
   let slackError: string | undefined;
   if (slackConfigured() && channel) {
     try {
-      const r = await tagClaude(channel, clientName, s.timezone, prompt);
-      via = 'slack';
+      const r = await tagClaude(channel, clientName, s.timezone, prompt, noticeText(clientName, command, args.trim(), id, by));
+      via = r.tagged ? 'slack' : 'sheet';
+      posted = true;
       slackTs = r.ts;
       slackThread = r.thread;
     } catch (e) {
@@ -154,7 +163,7 @@ export async function sendCommand(clientId: string, command: CommandType, args =
     return { ...fail(e), id, via, slackError, prompt, chatLink };
   }
   revalidatePath(`/c/${clientId}`, 'layout');
-  return { ok: true, id, via, slackError, prompt, chatLink, intervalMinutes: commandInterval(s) };
+  return { ok: true, id, via, posted, slackError, prompt, chatLink, intervalMinutes: commandInterval(s) };
 }
 
 /** For a command Claude hasn't picked up: post the Slack tag again. Never rewrites the row. */
@@ -168,11 +177,11 @@ export async function nudgeCommand(clientId: string, commandId: string): Promise
   const skill = setupValue(s.setup, 'skill') || SHARED_SKILL;
   const prompt = commandPrompt({ skill, command: c.command, args: c.args, clientName, sheetId: s.client.sheetId, id: c.id });
   const chatLink = setupValue(s.setup, 'claudeChat') || undefined;
-  const channel = setupValue(s.setup, 'slackChannelId');
-  if (!slackConfigured() || !channel) return { ok: false, error: 'Slack is not set up for this client.', prompt, chatLink };
+  const channel = slackChannel(s.setup);
+  if (!slackConfigured() || !channel) return { ok: false, error: 'Slack isn’t connected to the app yet.', prompt, chatLink };
   try {
-    await tagClaude(channel, clientName, s.timezone, prompt);
-    return { ok: true, id: c.id, via: 'slack', prompt, chatLink };
+    const r = await tagClaude(channel, clientName, s.timezone, prompt, noticeText(clientName, c.command, c.args, c.id, ''));
+    return { ok: true, id: c.id, via: r.tagged ? 'slack' : 'sheet', posted: true, prompt, chatLink, intervalMinutes: commandInterval(s) };
   } catch (e) {
     return { ...fail(e), prompt, chatLink };
   }

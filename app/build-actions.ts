@@ -5,7 +5,7 @@ import { a1, isWritableApprovalCol, TABS } from '@/lib/columns';
 import { batchGet, dropdownOptions, getMeta } from '@/lib/google';
 import { loadClientState } from '@/lib/data';
 import { driveFolderId, isBuilding, rowRanges, type ApprovalRow } from '@/lib/approvals';
-import { setupValue } from '@/lib/setup';
+import { setupValue, slackChannel } from '@/lib/setup';
 import { safeWriteMany, type CellResult } from '@/lib/writes';
 import { bust } from '@/lib/cache';
 import { sendCommand, type SendResult } from './actions';
@@ -117,7 +117,7 @@ export async function getBuildPlan(clientId: string, only?: number[]): Promise<B
     adSets,
     chatLink: setupValue(s.setup, 'claudeChat') || null,
     intervalMinutes: Number(setupValue(s.setup, 'commandInterval')) || 60,
-    slack: !!process.env.SLACK_BOT_TOKEN && !!setupValue(s.setup, 'slackChannelId'),
+    slack: !!process.env.SLACK_BOT_TOKEN && !!process.env.CLAUDE_SLACK_USER_ID,
   };
 }
 
