@@ -66,10 +66,10 @@ The CLAUDE SETUP tab always wins. New clients need no notes here: the app fills 
 |---|---|
 | Control sheet | `18Bl7y3ZU1QdHZHUYQN3H7XW_wlIm8_VtDbyvPQHCEDE` (tab AD APPROVALS) |
 | Creative Drive root | `1J9mLeMCbpo4BqAR3fGLXq6Z0lyt_BqPD`, one subfolder per brand |
-| Build day / timezone | Thursday · America/Bogota |
+| Build day / timezone | Thursday · America/Los_Angeles |
 | Slack channel | #ad-building-thursday · `C0C9S4EKJ3E` |
 | Tag on blockers | `<@U0C24G9D2EP> <@U031L23RUE7>` |
-| Status after build (B) | Ask once if unknown; until confirmed, leave B and log in AU only |
+| Status after build (B) | Paused |
 
 | Brand (col X) | Meta ad account | Drive folder | FB Page | Instagram | Default URL |
 |---|---|---|---|---|---|
