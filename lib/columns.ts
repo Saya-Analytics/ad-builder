@@ -22,8 +22,8 @@ export const APPROVALS_LAST_COL = 'AU';
 export const COPY_FIRST_ROW = 6;
 export const HOOKS_FIRST_ROW = 6;
 
-/** The only AD APPROVALS columns the app may write. */
-export const WRITABLE_APPROVAL_COLS = ['B', 'Y', 'AO', 'AP', 'AQ', 'AR', 'AS'] as const;
+/** The only AD APPROVALS columns the app may write. Z is the Drive link people paste (Claude updates it after organizing). */
+export const WRITABLE_APPROVAL_COLS = ['B', 'Y', 'Z', 'AO', 'AP', 'AQ', 'AR', 'AS'] as const;
 export type WritableApprovalCol = (typeof WRITABLE_APPROVAL_COLS)[number];
 
 export const STATUS_BUILDING = 'Building in ads manager';

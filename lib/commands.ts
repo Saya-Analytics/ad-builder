@@ -20,6 +20,7 @@ export const COMMAND_TYPES = {
   BUILD: 'Build every ready row (BUILD mode)',
   CHECK: 'Run the daily check (DAILY CHECK mode)',
   REWRITE_COPY: 'Write new copy for the rows in args',
+  FIX_ROWS: 'Fix the listed problems in the sheet where the answer is clear',
   RECHECK_BUILD: 'Re-check a finished build and fix the log',
   STATUS: 'Post today’s status to the Slack thread',
   ASK: 'Free-text request in args',

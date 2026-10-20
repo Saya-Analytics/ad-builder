@@ -5,7 +5,7 @@ import { setupValue } from '@/lib/setup';
 import { Icon } from './Icon';
 import { NavLink } from './NavLink';
 import { Search, type SearchItem } from './Search';
-import { CommandButton } from './Commands';
+import { BuildButton } from './BuildPanel';
 import { RefreshButton } from './RefreshButton';
 
 export interface Connection {
@@ -82,15 +82,7 @@ export function Sidebar({
         </div>
       </details>
 
-      {state ? (
-        <CommandButton
-          clientId={client.id}
-          command="BUILD"
-          label="Build ready ads"
-          variant="side"
-          confirm={`Ask Claude to build the ${c?.ready.length ?? 0} ready rows for ${client.name}? Everything is built PAUSED.`}
-        />
-      ) : null}
+      {state ? <BuildButton clientId={client.id} /> : null}
       <RefreshButton />
       <Search items={search} />
 

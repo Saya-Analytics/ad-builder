@@ -150,6 +150,7 @@ export default async function RowDetail({ params }: { params: Promise<{ clientId
             ) : (
               <span className="strong">No warnings on this row.</span>
             )}
+            <EditableField dark id="Z" label="Drive folder link (column Z)" type="url" value={r.drive} save={save('Z')} />
             <EditableField dark id="Y" label="Final URL (column Y)" type="url" value={r.url} save={save('Y')} />
             <EditableField
               dark

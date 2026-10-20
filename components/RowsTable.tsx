@@ -5,10 +5,18 @@ import type { ClientState } from '@/lib/data';
 
 export const STATE_LABEL: Record<RowState, string> = { ready: 'Ready', fix: 'Fix', built: 'Built ✓', other: '' };
 
-export function statusChip(state: RowState, problems: { title: string }[], status: string) {
+/** Says what to fix, from the first problem: its column, or the AT text that names one. */
+export function statusChip(state: RowState, problems: { title: string; cols?: string[] }[], status: string) {
   if (state === 'fix') {
-    const p = problems[0]?.title ?? 'Fix';
-    return /link|url|video .* url/i.test(p) ? 'Fix link' : 'Fix';
+    const p = problems[0];
+    const t = p?.title ?? '';
+    const cols = p?.cols ?? [];
+    if (cols.includes('Z') || /^Z\b|drive/i.test(t)) return 'Fix Drive link';
+    if (/check before turning on|video .*url/i.test(t)) return 'Check link';
+    if (cols.includes('Y') || /^Y\b|website url/i.test(t)) return 'Fix URL';
+    if (cols.some((c) => ['AO', 'AP', 'AQ', 'AR'].includes(c)) || /^[①②③④]/.test(t)) return 'Pick destination';
+    if (cols.includes('F')) return 'Fix copy set';
+    return 'Fix';
   }
   return state === 'other' ? status : STATE_LABEL[state];
 }

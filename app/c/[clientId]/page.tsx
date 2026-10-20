@@ -6,6 +6,7 @@ import { setupValue } from '@/lib/setup';
 import { commandInterval, trackedCommands } from '@/lib/tracked';
 import { AskClaude, CommandButton, type Suggestion } from '@/components/Commands';
 import { CommandTracker } from '@/components/CommandTracker';
+import { AskFixButton, BuildButton } from '@/components/BuildPanel';
 import { BrandFilter, RowsTable } from '@/components/RowsTable';
 import { permalink } from '@/lib/slack';
 
@@ -52,7 +53,6 @@ export default async function Home({ params, searchParams }: { params: Promise<{
   const brandRows = firstBrand ? rows.filter((r) => r.brand === firstBrand).map((r) => r.row) : [];
 
   const suggestions: Suggestion[] = [];
-  if (ready.length) suggestions.push({ label: `Build the ${ready.length} ready ad${ready.length === 1 ? '' : 's'}`, command: 'BUILD' });
   suggestions.push({ label: 'Check new creative drops', command: 'CHECK' });
   if (fix.length) {
     const r = rowRanges(fix.map((x) => x.row));
@@ -75,7 +75,11 @@ export default async function Home({ params, searchParams }: { params: Promise<{
           clientId={clientId}
           suggestions={suggestions}
           example={firstBrand && brandRows.length ? `Write new copy for ${firstBrand} rows ${rowRanges(brandRows)}` : 'Check new creative drops'}
-        />
+        >
+          {queue.length ? (
+            <BuildButton clientId={clientId} variant="pill" label={`Build ${queue.length} ad${queue.length === 1 ? '' : 's'} (${ready.length} ready)`} />
+          ) : null}
+        </AskClaude>
       </section>
 
       <section aria-label="This week" className="section">
@@ -126,9 +130,16 @@ export default async function Home({ params, searchParams }: { params: Promise<{
                     <div className="strong" style={{ fontSize: 15 }}>{b.title}</div>
                     <div className="small muted">{b.fix}</div>
                   </div>
-                  <Link prefetch={false} href={b.href} style={{ fontSize: 14, minHeight: 44, display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
-                    {b.action} ›
-                  </Link>
+                  {b.rows ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0 }}>
+                      <BuildButton clientId={clientId} mode="fix" rows={b.rows} problem={b.problem} label="Fix here" variant="link" />
+                      <AskFixButton clientId={clientId} rows={b.rows} problem={b.problem ?? b.title} />
+                    </div>
+                  ) : (
+                    <Link prefetch={false} href={b.href} style={{ fontSize: 14, minHeight: 44, display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
+                      {b.action} ›
+                    </Link>
+                  )}
                 </div>
               ))
             ) : (

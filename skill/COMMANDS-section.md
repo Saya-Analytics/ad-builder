@@ -23,8 +23,9 @@ G status · H slack_ts · I started_at · J finished_at · K note · L slack_thr
 
 | C command | What to do |
 |---|---|
-| `BUILD` | BUILD mode for every build-scope row (sections 2–11). |
+| `BUILD` | BUILD mode (sections 2–11). If D starts with `rows …` (e.g. `rows 79–81, 83`), build **only those rows**. A `note: …` part in D is extra instructions from the team for this build; follow it within this skill's rules. |
 | `CHECK` | DAILY CHECK mode. Never create anything in Ads Manager. |
+| `FIX_ROWS` | D is `rows <ranges>: <problem>` (plus an optional `note: …`). Fix those rows **in the sheet** when the answer is clear from the sheet or Drive, e.g. a Drive folder link typed in AA (BRIEF) or Y instead of Z → put it in Z; a blank tag you can fill per section 8. Never guess a destination (AO–AQ) or a URL, never create anything in Ads Manager. K = what you fixed and what still needs a person. |
 | `REWRITE_COPY` | D is `row 118` or `rows 113–122`. Run section 6 for those rows even if F is filled: write a **new** COPY row and point F at it. Never edit the old COPY row. Nothing in Ads Manager. |
 | `RECHECK_BUILD` | D is a date (`2026-10-16`). For rows whose AU has that date: confirm each ad exists and is PAUSED, re-check video product vs Y, update the ⚠ part of AU. Create nothing. |
 | `STATUS` | Post today's status in the client's Slack thread (section 11 format). |
@@ -35,7 +36,9 @@ G status · H slack_ts · I started_at · J finished_at · K note · L slack_thr
 
 Rules: never delete, reorder or clear COMMANDS rows. Only write G, I, J and K. The app reads COMMANDS every 30–60 s while a command is open and shows K to the team, so keep K short and specific.
 
-The app also edits these AD APPROVALS cells for people: **B, Y and AO–AS** (it never writes formulas or F, V, Z, AU). Always re-read the rows before acting, as the skill already does.
+The app also edits these AD APPROVALS cells for people: **B, Y, Z and AO–AS** (it never writes formulas, F, V or AU). Always re-read the rows before acting, as the skill already does.
+
+**When you insert rows** (section 3, step 5e, extra creatives), the new row must get the formula cells of the row above: copy **C, D, E, G–U, W, AE and AT** from the row above (copy the formula, so the row references shift), then fill the inputs. A row without them has no ad name and no ✓/✗ check. If there are empty template rows already set up below (status blank, formulas in place), you may use those instead of inserting.
 
 ### CLAUDE SETUP layout the app writes
 

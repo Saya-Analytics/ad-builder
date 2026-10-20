@@ -13,25 +13,42 @@ export function CommandOutcome({ result, dark }: { result: SendResult; dark?: bo
     await navigator.clipboard.writeText(result.prompt).catch(() => {});
     setCopied(true);
   };
-  let headline: string;
-  if (!result.ok) headline = `Couldn’t send: ${result.error}`;
-  else if (result.via === 'slack') headline = 'Sent to Claude in Slack. The result will show up here and in the sheet.';
-  else headline = `Queued in the COMMANDS tab for Claude’s scheduled task.${result.slackError ? ` Slack post failed (${result.slackError}), so it went to the queue.` : ''}`;
+  const when = !result.intervalMinutes ? 'on its next run' : result.intervalMinutes >= 1440 ? 'on its next daily run' : `within ${result.intervalMinutes} minutes`;
+  if (!result.ok) {
+    return (
+      <div className={dark ? 'on-dark small' : 'notice small'} role="alert">
+        <span>Couldn’t send it to Claude: {result.error}</span>
+      </div>
+    );
+  }
+  if (result.via === 'slack') {
+    return (
+      <div className={dark ? 'on-dark small' : 'notice small'} role="status">
+        <strong>Sent to Claude in Slack ✓</strong>
+        <span>Claude replies in the thread; the result shows up here and in the sheet.</span>
+      </div>
+    );
+  }
   return (
     <div className={dark ? 'on-dark small' : 'notice small'} role="status" style={dark ? { display: 'flex', flexDirection: 'column', gap: 6 } : undefined}>
-      <span>{headline}</span>
-      {result.prompt && (!result.ok || result.via === 'sheet') ? (
-        <span className="wrap" style={{ alignItems: 'center' }}>
-          <button type="button" className="linkbtn" onClick={copy}>
-            {copied ? 'Prompt copied ✓' : 'Copy prompt ›'}
-          </button>
-          {result.chatLink ? (
-            <a href={result.chatLink} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44, marginLeft: 12 }}>
-              Open the Claude chat ›
-            </a>
-          ) : null}
-        </span>
-      ) : null}
+      <strong>Sent to Claude ✓</strong>
+      <span>
+        It’s in the COMMANDS tab. Claude’s scheduled task picks it up {when} and writes the result back here.
+        {result.slackError ? ' (Slack didn’t answer, so it went to the queue.)' : ''}
+      </span>
+      <span>Want it now? Paste the prompt in the client’s Claude chat.</span>
+      <span className="wrap" style={{ alignItems: 'center', gap: 16 }}>
+        <button type="button" className="linkbtn" onClick={copy}>
+          {copied ? 'Prompt copied ✓' : 'Copy prompt ›'}
+        </button>
+        {result.chatLink ? (
+          <a href={result.chatLink} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44 }}>
+            Open the Claude chat ›
+          </a>
+        ) : (
+          <span className="muted">Add the Claude chat link in Settings to open it from here.</span>
+        )}
+      </span>
     </div>
   );
 }
@@ -93,7 +110,7 @@ export interface Suggestion {
 }
 
 /** The Ask Claude box. It never answers here: the answer arrives in Slack and in the sheet. */
-export function AskClaude({ clientId, suggestions, example }: { clientId: string; suggestions: Suggestion[]; example: string }) {
+export function AskClaude({ clientId, suggestions, example, children }: { clientId: string; suggestions: Suggestion[]; example: string; children?: React.ReactNode }) {
   const [text, setText] = useState('');
   const [pending, start] = useTransition();
   const [result, setResult] = useState<SendResult | null>(null);
@@ -122,6 +139,7 @@ export function AskClaude({ clientId, suggestions, example }: { clientId: string
         </button>
       </form>
       <div className="wrap" style={{ justifyContent: 'center', marginTop: 6 }}>
+        {children}
         {suggestions.map((s) => (
           <button key={s.label} type="button" className="pill" style={{ minHeight: 40, padding: '8px 16px' }} disabled={pending} onClick={() => send(s.command, s.args ?? '')}>
             {s.label}

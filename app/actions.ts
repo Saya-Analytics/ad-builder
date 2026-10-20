@@ -11,6 +11,7 @@ import { BRANDS_HEADER, onboardingDefaults, parseBrandLines, parseSetup, SETUP_F
 import { bust } from '@/lib/cache';
 import { postMessage, slackConfigured, todaysParent } from '@/lib/slack';
 import { currentUser } from '@/lib/auth';
+import { commandInterval } from '@/lib/tracked';
 
 const fail = (e: unknown): { ok: false; error: string } => ({ ok: false, error: e instanceof Error ? e.message : String(e) });
 
@@ -69,6 +70,8 @@ export interface SendResult {
   prompt?: string;
   chatLink?: string;
   error?: string;
+  /** How often Claude's scheduled task reads COMMANDS (from CLAUDE SETUP). */
+  intervalMinutes?: number;
 }
 
 function localMidnightEpoch(timeZone: string): number {
@@ -127,9 +130,8 @@ export async function sendCommand(clientId: string, command: CommandType, args =
     } catch (e) {
       slackError = e instanceof Error ? e.message : String(e);
     }
-  } else {
-    slackError = !channel ? 'No Slack channel in CLAUDE SETUP' : 'Slack is not configured';
   }
+  // Slack not set up is normal: the command simply waits in COMMANDS for the scheduled task.
 
   try {
     await appendValues(s.client.sheetId, a1(TABS.commands, 'A:L'), [
@@ -144,7 +146,7 @@ export async function sendCommand(clientId: string, command: CommandType, args =
         slackTs,
         '',
         '',
-        slackError ? `Slack post failed: ${slackError}. Queued for the scheduled task.` : '',
+        slackError ? `Slack post failed (${slackError}); queued for the scheduled task.` : '',
         slackThread,
       ],
     ]);
@@ -152,7 +154,7 @@ export async function sendCommand(clientId: string, command: CommandType, args =
     return { ...fail(e), id, via, slackError, prompt, chatLink };
   }
   revalidatePath(`/c/${clientId}`, 'layout');
-  return { ok: true, id, via, slackError, prompt, chatLink };
+  return { ok: true, id, via, slackError, prompt, chatLink, intervalMinutes: commandInterval(s) };
 }
 
 /** For a command Claude hasn't picked up: post the Slack tag again. Never rewrites the row. */

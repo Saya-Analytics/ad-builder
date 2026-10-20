@@ -1,5 +1,5 @@
 import 'server-only';
-import { batchGet, updateValues } from './google.ts';
+import { batchGet, batchUpdateValues, updateValues } from './google.ts';
 
 // Every write re-reads the cell first. If someone changed it in the sheet since the
 // page loaded, nothing is written and the caller gets both values to choose from.
@@ -22,4 +22,40 @@ export async function safeWrite(spreadsheetId: string, range: string, expected: 
   if (current.trim() === value.trim()) return { ok: true };
   await updateValues(spreadsheetId, range, [[value]]);
   return { ok: true };
+}
+
+export interface CellEdit {
+  range: string;
+  expected: string;
+  value: string;
+}
+
+export type CellResult = { range: string } & WriteResult;
+
+/**
+ * Many cells at once with the same guard: two reads (shown values and formulas) and one write,
+ * whatever the number of cells, so a big save doesn't use up Google's per-minute quota.
+ */
+export async function safeWriteMany(spreadsheetId: string, edits: CellEdit[]): Promise<CellResult[]> {
+  if (!edits.length) return [];
+  const ranges = edits.map((e) => e.range);
+  const [shown, formulas] = await Promise.all([
+    batchGet(spreadsheetId, ranges, 'FORMATTED_VALUE', true),
+    batchGet(spreadsheetId, ranges, 'FORMULA', true),
+  ]);
+  const results: CellResult[] = [];
+  const toWrite: { range: string; values: string[][] }[] = [];
+  edits.forEach((e, i) => {
+    const current = (shown[i]?.[0]?.[0] ?? '').toString();
+    const raw = (formulas[i]?.[0]?.[0] ?? '').toString();
+    if (e.value.trim().startsWith('=')) results.push({ range: e.range, ok: false, error: 'Formulas can’t be written from the app.' });
+    else if (raw.startsWith('=')) results.push({ range: e.range, ok: false, error: 'This cell is a formula. Change it in the sheet.' });
+    else if (current.trim() !== e.expected.trim()) results.push({ range: e.range, ok: false, conflict: { current, attempted: e.value } });
+    else {
+      if (current.trim() !== e.value.trim()) toWrite.push({ range: e.range, values: [[e.value]] });
+      results.push({ range: e.range, ok: true });
+    }
+  });
+  await batchUpdateValues(spreadsheetId, toWrite);
+  return results;
 }

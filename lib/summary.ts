@@ -39,6 +39,9 @@ export interface Blocker {
   fix: string;
   action: string;
   href: string;
+  /** Row problems: the rows and the problem, so they can be fixed here or sent to Claude. */
+  rows?: number[];
+  problem?: string;
 }
 
 export function blockers(s: ClientState, intervalMinutes: number, base: string): Blocker[] {
@@ -65,6 +68,8 @@ export function blockers(s: ClientState, intervalMinutes: number, base: string):
       fix: g.fix,
       action: 'Fix',
       href: `${base}/rows/${g.rows[0]}`,
+      rows: g.rows,
+      problem: title,
     });
   }
   for (const b of s.setup?.brands ?? []) {

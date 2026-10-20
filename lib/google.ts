@@ -146,6 +146,17 @@ export async function updateValues(spreadsheetId: string, range: string, values:
   bust(spreadsheetId);
 }
 
+/** Several ranges in one request (one write against the quota). */
+export async function batchUpdateValues(spreadsheetId: string, data: { range: string; values: string[][] }[]): Promise<void> {
+  if (!data.length) return;
+  if (fake()) return data.forEach((d) => fakeUpdate(spreadsheetId, d.range, d.values));
+  await gfetch(`${SHEETS}/${spreadsheetId}/values:batchUpdate`, {
+    method: 'POST',
+    body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data }),
+  });
+  bust(spreadsheetId);
+}
+
 /** Appends below the last row. RAW so nothing turns into a date or a number. */
 export async function appendValues(spreadsheetId: string, range: string, values: string[][]): Promise<void> {
   if (fake()) return fakeAppend(spreadsheetId, range, values);
