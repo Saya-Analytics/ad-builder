@@ -29,9 +29,11 @@ The Ad Builder app repeats this list at the end of every request it sends ("Reme
 4. **Leave formulas and people's input alone:** re-read the rows before writing. Never write C, D, E, G–U, W, AE or AT. Never overwrite what a person typed.
 5. **Destinations are looked up live** in Ads Manager (all statuses, exact names). `USE` creates nothing, and `CREATE` creates exactly that, once. Never guess.
 6. **Drive:** Z is the creative's own folder. Use real pixel dimensions. Never trash or overwrite a file.
+   - **Rows sharing one Drive link:** organize the folder first, then make one row per creative, whatever the number of rows (section 3, 5b).
    - **If Z is only digits** (e.g. `17890123456789012`, or `123456789_987654321`), it is a **creator's post ID**. That row is a **partnership ad** (section 9b), not a Drive creative.
 7. **Copy (section 6):**
    - Research the live ads in AdManage and the sheet first.
+   - Read the creative, and read the row's 📝 COPY NOTES (AV). If AV is blank, write from the creative alone.
    - Only make claims that appear on the landing page (Y), the brand's site, or in the creative.
    - Build PAUSED.
    - **Send the copy for review (section 6b).**
@@ -122,7 +124,11 @@ X CALL TO ACTION · Y WEBSITE URL · Z ASSET LINK / DRIVE · AA BRIEF · AB BRIE
 AE AD NAME(f)
 AF Brand · AG Funnel · AH Promo/Activation · AI Offer · AJ Angle/Concept · AK Ad Type · AL Product · AM Differentiation · AN Landing Page
 AO ① WHAT DOES CLAUDE DO · AP ② CAMPAIGN · AQ ③ AD SET · AR ④ COPY SETTINGS FROM · AS ⑤ DAILY BUDGET · AT ✓ CHECK(f) · AU BUILD LOG
+AV 📝 COPY NOTES
 ```
+- **AR** is the name of an existing **ad set** whose settings get copied. It's only used when AO is CREATE.
+- **AS** is only used when creating. Leave it blank on CBO campaigns, where the budget lives on the campaign. If AS has a number and the campaign is CBO, ignore it and say so.
+- **AV (📝 COPY NOTES)** holds the team's instructions for that ad's copy. Blank means writing the copy from the creative alone. Older sheets may not have AV yet; treat it as blank.
 (f) = formula. **Never write into C, D, E, G–U, W, AE or AT.** Legacy rows have typed copy in G/L/Q and no COPY SET. Leave them alone.
 
 ### COPY tab (copy library)
@@ -188,10 +194,27 @@ A different hook, a different edit or a different length counts as a different c
 
 **5a. Count creatives, not files.** After step 3, count the *creatives* in the folder (files with the same content in different formats = 1 creative). Example: 4 files where 3 are the same video in 1x1/4x5/9x16 and 1 is a different video = **2 creatives**.
 
-**5b. Compare with the rows that point to that folder.**
-- **Same number of creatives and rows:** the team set it up as one creative per row. Assign one to each row (5c). Never ask a human.
-- **More creatives than rows:** assign what matches, add rows for the extras (see below).
-- **Fewer creatives than rows:** assign what matches, report "No creative yet for <brief>, row <r>".
+**5b. Rows that share a Drive link: the Drive decides, not the row count.**
+
+**Order matters:** organize the folder first (steps 1–4), then count, then decide the rows. Never decide the rows from how many already exist.
+
+1. **Find the group.** Take every in-scope row whose Z points to the same link, or to that folder's parent or one of its subfolders. Example: rows 81, 82 and 83 all point to the same folder.
+2. **Treat the rows as placeholders.** Three rows doesn't mean three ads: the team often copies a row without knowing how many creatives are inside. Work from the creatives the organized folder actually holds (5a).
+3. **Assign one creative per row**, in this order:
+   - Give each creative to the row whose identifiers match it (5c).
+   - Fill the remaining rows of the group in row order.
+4. **More creatives than rows in the group:** insert one new row per extra creative, directly below the last row of the group (5e).
+5. **Fewer creatives than rows:** the leftover rows get no creative.
+   - Don't build them, delete them or clear them.
+   - Write `ORGANIZED: no creative left (same Drive as rows <a–b>)` in AU.
+   - Slack: "Rows <r>: same Drive as <a–b>, only <n> creatives. Set B to something else or remove the row."
+
+Example: rows 81–83 share a folder that, once organized, holds 5 creatives.
+- 81, 82 and 83 get creatives 1–3.
+- Two new rows go in below 83 for creatives 4–5.
+- If the folder held only 2 creatives, 81 and 82 get them and 83 is reported.
+
+Never ask a human how to split it; only ask when a creative can't be told apart from another brand or product (5e).
 
 **5c. How to assign.** Look for an identifier in every column of the row and match it against the filename, the folder name and what the creative shows/says (section 5 analysis):
 AA brief (code, name, angle) · AJ angle · AL product · AM differentiation · Y URL (product handle, e.g. `spm-1`) · AN landing page · AK ad type (video/static).
@@ -204,7 +227,7 @@ Never overwrite a specific AM a person typed; only extend a generic one.
 
 **5e. Then:**
 - **One creative per row**: set **Z** to that creative's own subfolder link (step 4).
-- **One brief row, several creatives** (the team tested several formats, cuts or creators): the first creative stays on the original row. **Insert one new row directly below for each extra creative.** Copy B, X, Y, AA, AB, AC, AD and AF–AL from the original row. Set AM per 5d. Set Z to that creative's folder and AO to `SAME AS ROW ABOVE`. Leave F and V empty, so each creative gets its own copy and hook.
+- **One brief row, several creatives** (the team tested several formats, cuts or creators): the first creative stays on the original row. **Insert one new row for each extra creative, directly below the row (or below the last row of the group when several rows share the link, 5b).** Copy B, X, Y, AA, AB, AC, AD and AF–AL from the original row. Set AM per 5d. Set Z to that creative's folder and AO to `SAME AS ROW ABOVE`. Leave F and V empty, so each creative gets its own copy and hook.
 - **A creative that truly matches no row in that folder's set** (e.g. a different brand or product): list it in Slack as "Unmatched creative: <file>" and leave it out.
 
 **Step 6: log it.** Write `ORGANIZED:<n> creatives | dims:<…> | <date>` into AU on every row you touched.
@@ -271,6 +294,8 @@ For each creative, write down what it shows, what it claims, the **angle** (the 
 2. Then read the brand's COPY rows (Active and Legacy, same BRAND) and its last 10–20 rows in AD APPROVALS.
 3. **Open the landing page (Y)** and the brand's site (web fetch). Note the claims, product names, offers and wording on that page. This is the list of what the copy may say.
 4. Write the new copy as a variation of what is already running, adapted to what *this* creative shows and says.
+
+5. **Read AV (📝 COPY NOTES)** for the row and follow it, within the grounding rules below. You still analyze the creative (section 5) and read the landing page either way. If AV is blank, write from the creative alone.
 
 If the account has no live ads, say so in the Slack thread and use the sheet history only. If Y can't be opened, write only claims that appear in the creative and in the brand's existing copy, and flag "Couldn't open <Y>" in the review message.
 
@@ -515,7 +540,7 @@ G status · H slack_ts · I started_at · J finished_at · K note · L slack_thr
 
 Rules: never delete, reorder or clear COMMANDS rows. Only write G, I, J and K. The app reads COMMANDS every 30–60 s while a command is open and shows K to the team, so keep K short and specific.
 
-The app also edits these AD APPROVALS cells for people: **B, Y, Z and AO–AS** (it never writes formulas, F, V or AU). Always re-read the rows before acting, as the skill already does.
+The app also edits these AD APPROVALS cells for people: **B, Y, Z, AO–AS and AV (copy notes)** (it never writes formulas, F, V or AU). Always re-read the rows before acting, as the skill already does.
 
 **When you insert rows** (section 3, step 5e, extra creatives), the new row must get the formula cells of the row above: copy **C, D, E, G–U, W, AE and AT** from the row above (copy the formula, so the row references shift), then fill the inputs. A row without them has no ad name and no ✓/✗ check. If there are empty template rows already set up below (status blank, formulas in place), you may use those instead of inserting.
 

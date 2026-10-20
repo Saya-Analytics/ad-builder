@@ -48,6 +48,7 @@ export interface ApprovalRow {
   adSet: string; // AQ
   copyFrom: string; // AR
   budget: string; // AS
+  copyNotes: string; // AV: instructions for the copy; blank = Claude writes from the creative
   check: string; // AT (formula)
   log: BuildLog; // AU
 }
@@ -177,6 +178,7 @@ export function parseApprovals(values: string[][], firstRow = APPROVALS_FIRST_RO
       adSet: cell(r, 'AQ'),
       copyFrom: cell(r, 'AR'),
       budget: cell(r, 'AS'),
+      copyNotes: cell(r, 'AV'),
       check: cell(r, 'AT'),
       log: parseBuildLog(cell(r, 'AU')),
     });

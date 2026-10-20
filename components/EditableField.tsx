@@ -15,6 +15,7 @@ export function EditableField({
   type = 'text',
   dark,
   hint,
+  allowOther,
   id,
   placeholder,
 }: {
@@ -25,6 +26,8 @@ export function EditableField({
   type?: 'text' | 'url';
   dark?: boolean;
   hint?: string;
+  /** Adds “Type a different name…” to the dropdown (for names Claude will create). */
+  allowOther?: boolean;
   id?: string;
   placeholder?: string;
 }) {
@@ -55,20 +58,22 @@ export function EditableField({
     });
 
   const dirty = draft.trim() !== base.trim();
-  const opts = options && options.length ? (options.includes(draft) || !draft ? options : [draft, ...options]) : null;
+  const [typing, setTyping] = useState(false);
+  const opts = !typing && options && options.length ? (options.includes(draft) || !draft ? options : [draft, ...options]) : null;
 
   return (
     <div className={`field${dark ? ' on-dark' : ''}`} id={id}>
       <label htmlFor={`${id ?? label}-input`}>{label}</label>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {opts ? (
-          <select autoComplete="off" id={`${id ?? label}-input`} className="select" style={{ flex: '1 1 220px' }} value={draft} onChange={(e) => setDraft(e.target.value)}>
+          <select autoComplete="off" id={`${id ?? label}-input`} className="select" style={{ flex: '1 1 220px' }} value={draft} onChange={(e) => (e.target.value === '__other__' ? setTyping(true) : setDraft(e.target.value))}>
             {!draft ? <option value="">—</option> : null}
             {opts.map((o) => (
               <option key={o} value={o}>
                 {o}
               </option>
             ))}
+            {allowOther ? <option value="__other__">✎ Type a different name…</option> : null}
           </select>
         ) : (
           <input

@@ -16,7 +16,48 @@ const COL_NAME: Record<Col, string> = {
   AQ: 'Ad set',
   AR: 'Copy settings from',
   AS: 'Daily budget',
+  AV: 'Copy notes',
 };
+
+const OTHER = '__other__';
+
+/**
+ * A real dropdown of what exists in Ads Manager (from META_LIST), with "Type a different name…"
+ * for names that aren't listed yet. Datalists were unreliable (filtered, invisible in Safari/dialogs).
+ */
+function Pick({ value, options, onChange, label, placeholder, disabled, free }: { value: string; options: string[]; onChange: (v: string) => void; label: string; placeholder: string; disabled?: boolean; free?: boolean }) {
+  const [typing, setTyping] = useState(false);
+  if (free || typing || !options.length)
+    return (
+      <span className="stack" style={{ gap: 2 }}>
+        <input className="input" value={value} placeholder={placeholder} disabled={disabled} onChange={(e) => onChange(e.target.value)} aria-label={label} />
+        {!free && options.length && !disabled ? (
+          <button type="button" className="linkbtn xs" style={{ minHeight: 28 }} onClick={() => setTyping(false)}>
+            Pick from the list ›
+          </button>
+        ) : null}
+      </span>
+    );
+  const listed = !value || options.includes(value);
+  return (
+    <select
+      className="select"
+      value={value}
+      disabled={disabled}
+      aria-label={label}
+      onChange={(e) => (e.target.value === OTHER ? setTyping(true) : onChange(e.target.value))}
+    >
+      <option value="">{placeholder}</option>
+      {!listed ? <option value={value}>{value} (not in the list)</option> : null}
+      {options.map((o) => (
+        <option key={o} value={o}>
+          {o}
+        </option>
+      ))}
+      <option value={OTHER}>✎ Type a different name…</option>
+    </select>
+  );
+}
 
 /** What would still stop Claude, judged from the panel's values (same rules as the AT check). */
 function missing(v: PlanRow['cells']): string[] {
@@ -109,6 +150,7 @@ function PanelContent({ clientId, plan, mode, problem, close }: { clientId: stri
   const [saved, setSaved] = useState<SaveResult | null>(null);
   const [sent, setSent] = useState<SendResult | null>(null);
 
+  const campaignNames = plan.campaigns.map((c) => c.name);
   const adSetsFor = (campaign: string) => plan.campaigns.find((c) => c.name === campaign)?.adSets ?? plan.adSets;
   const set = (row: number, col: Col, v: string) => setValues((s) => ({ ...s, [row]: { ...s[row], [col]: v } }));
   const toggle = (row: number) =>
@@ -235,39 +277,34 @@ function PanelContent({ clientId, plan, mode, problem, close }: { clientId: stri
                     <option key={a}>{a}</option>
                   ))}
                 </select>
-                <input className="input" list="bp-campaigns" placeholder="Campaign" value={bulk.AP ?? ''} onChange={(e) => setBulk({ ...bulk, AP: e.target.value })} aria-label="Campaign" />
-                <input
-                  className="input"
-                  list={bulk.AO === 'USE EXISTING AD SET' ? 'bp-adsets-bulk' : undefined}
-                  placeholder={bulk.AO?.startsWith('CREATE') ? 'New ad set name' : 'Ad set'}
-                  value={bulk.AQ ?? ''}
-                  onChange={(e) => setBulk({ ...bulk, AQ: e.target.value })}
-                  aria-label="Ad set"
+                <Pick
+                  value={bulk.AP ?? ''}
+                  options={campaignNames}
+                  free={bulk.AO === 'CREATE NEW CAMPAIGN + NEW AD SET'}
+                  placeholder={bulk.AO === 'CREATE NEW CAMPAIGN + NEW AD SET' ? 'New campaign name' : 'Campaign…'}
+                  onChange={(v) => setBulk({ ...bulk, AP: v })}
+                  label="Campaign"
                 />
-                <input className="input" list="bp-allsets" placeholder="Copy settings from (ad set)" value={bulk.AR ?? ''} onChange={(e) => setBulk({ ...bulk, AR: e.target.value })} aria-label="Copy settings from" />
-                <input className="input" placeholder="Daily budget" value={bulk.AS ?? ''} onChange={(e) => setBulk({ ...bulk, AS: e.target.value })} aria-label="Daily budget" />
+                <Pick
+                  value={bulk.AQ ?? ''}
+                  options={adSetsFor(bulk.AP ?? '')}
+                  free={!!bulk.AO?.startsWith('CREATE')}
+                  placeholder={bulk.AO?.startsWith('CREATE') ? 'New ad set name' : 'Ad set…'}
+                  onChange={(v) => setBulk({ ...bulk, AQ: v })}
+                  label="Ad set"
+                />
+                <Pick value={bulk.AR ?? ''} options={plan.adSets} placeholder="Copy settings from ad set…" onChange={(v) => setBulk({ ...bulk, AR: v })} label="Copy settings from (ad set)" />
+                <input className="input" placeholder="Daily budget (blank if CBO)" value={bulk.AS ?? ''} onChange={(e) => setBulk({ ...bulk, AS: e.target.value })} aria-label="Daily budget" />
                 <button type="button" className="btn btn-outline btn-sm" onClick={applyBulk} disabled={!chosen.length}>
                   Apply
                 </button>
               </div>
-              <datalist id="bp-adsets-bulk">
-                {adSetsFor(bulk.AP ?? '').map((a) => (
-                  <option key={a} value={a} />
-                ))}
-              </datalist>
             </section>
           ) : null}
 
-          <datalist id="bp-campaigns">
-            {plan.campaigns.map((c) => (
-              <option key={c.name} value={c.name} />
-            ))}
-          </datalist>
-          <datalist id="bp-allsets">
-            {plan.adSets.map((a) => (
-              <option key={a} value={a} />
-            ))}
-          </datalist>
+          {!plan.campaigns.length ? (
+            <p className="small muted">No campaigns in META_LIST yet (it lists what has spent in RAW_META), so type the names exactly as in Ads Manager.</p>
+          ) : null}
 
           <div className="panel-table scroll-x">
             <table className="rows">
@@ -281,14 +318,14 @@ function PanelContent({ clientId, plan, mode, problem, close }: { clientId: stri
                   <th scope="col">Campaign (AP)</th>
                   <th scope="col">Ad set (AQ)</th>
                   <th scope="col">Copy settings from (AR)</th>
-                  <th scope="col">Budget (AS)</th>
+                  <th scope="col" title="Leave blank if the campaign is CBO">Budget (AS) · blank if CBO</th>
+                  <th scope="col" title="Leave blank and Claude writes the copy from the creative alone">Copy notes (AV)</th>
                 </tr>
               </thead>
               <tbody>
                 {plan.rows.map((r) => {
                   const v = values[r.row];
                   const miss = missing(v);
-                  const listId = `bp-adsets-${r.row}`;
                   return (
                     <tr key={r.row}>
                       <td>
@@ -313,6 +350,11 @@ function PanelContent({ clientId, plan, mode, problem, close }: { clientId: stri
                       </td>
                       <td style={{ minWidth: 240 }}>
                         <input className="input" type="text" value={v.Z} placeholder="Drive folder link, or creator post ID" onChange={(e) => set(r.row, 'Z', e.target.value)} aria-label={`Drive link row ${r.row}`} />
+                        {r.sharedWith.length ? (
+                          <div className="xs muted" style={{ marginTop: 4 }}>
+                            Same Drive as row{r.sharedWith.length === 1 ? '' : 's'} {rangeText(r.sharedWith)}. Claude organizes the folder first, then makes one row per creative (adds or reports rows as needed).
+                          </div>
+                        ) : null}
                         {r.driveElsewhere && v.Z !== r.driveElsewhere ? (
                           <button type="button" className="linkbtn xs" style={{ minHeight: 32 }} onClick={() => set(r.row, 'Z', r.driveElsewhere!)}>
                             Use the Drive link found in another column ›
@@ -331,45 +373,50 @@ function PanelContent({ clientId, plan, mode, problem, close }: { clientId: stri
                         </select>
                       </td>
                       <td style={{ minWidth: 220 }}>
-                        <input
-                          className="input"
-                          list={v.AO === 'CREATE NEW CAMPAIGN + NEW AD SET' ? undefined : 'bp-campaigns'}
-                          placeholder={v.AO === 'CREATE NEW CAMPAIGN + NEW AD SET' ? 'New campaign name' : 'Pick a campaign'}
+                        <Pick
                           value={v.AP}
+                          options={campaignNames}
+                          free={v.AO === 'CREATE NEW CAMPAIGN + NEW AD SET'}
+                          placeholder={v.AO === 'CREATE NEW CAMPAIGN + NEW AD SET' ? 'New campaign name' : 'Pick a campaign…'}
                           disabled={v.AO === 'SAME AS ROW ABOVE'}
-                          onChange={(e) => set(r.row, 'AP', e.target.value)}
-                          aria-label={`Campaign row ${r.row}`}
+                          onChange={(x) => set(r.row, 'AP', x)}
+                          label={`Campaign row ${r.row}`}
                         />
                       </td>
                       <td style={{ minWidth: 220 }}>
-                        <input
-                          className="input"
-                          list={v.AO === 'USE EXISTING AD SET' ? listId : undefined}
-                          placeholder={v.AO?.startsWith('CREATE') ? 'New ad set name' : 'Pick an ad set'}
+                        <Pick
                           value={v.AQ}
+                          options={adSetsFor(v.AP)}
+                          free={!!v.AO?.startsWith('CREATE')}
+                          placeholder={v.AO?.startsWith('CREATE') ? 'New ad set name' : 'Pick an ad set…'}
                           disabled={v.AO === 'SAME AS ROW ABOVE'}
-                          onChange={(e) => set(r.row, 'AQ', e.target.value)}
-                          aria-label={`Ad set row ${r.row}`}
+                          onChange={(x) => set(r.row, 'AQ', x)}
+                          label={`Ad set row ${r.row}`}
                         />
-                        <datalist id={listId}>
-                          {adSetsFor(v.AP).map((a) => (
-                            <option key={a} value={a} />
-                          ))}
-                        </datalist>
                       </td>
                       <td style={{ minWidth: 220 }}>
-                        <input
-                          className="input"
-                          list="bp-allsets"
+                        <Pick
                           value={v.AR}
+                          options={plan.adSets}
                           disabled={!v.AO?.startsWith('CREATE')}
-                          placeholder={v.AO?.startsWith('CREATE') ? 'Ad set to copy' : '—'}
-                          onChange={(e) => set(r.row, 'AR', e.target.value)}
-                          aria-label={`Copy settings from row ${r.row}`}
+                          placeholder={v.AO?.startsWith('CREATE') ? 'Ad set to copy settings from…' : '— only when creating'}
+                          onChange={(x) => set(r.row, 'AR', x)}
+                          label={`Copy settings from (ad set) row ${r.row}`}
                         />
                       </td>
                       <td style={{ minWidth: 120 }}>
-                        <input className="input" value={v.AS} inputMode="decimal" onChange={(e) => set(r.row, 'AS', e.target.value)} aria-label={`Budget row ${r.row}`} />
+                        <input className="input" value={v.AS} inputMode="decimal" placeholder="blank if CBO" disabled={!v.AO?.startsWith('CREATE')} onChange={(e) => set(r.row, 'AS', e.target.value)} aria-label={`Budget row ${r.row}`} />
+                      </td>
+                      <td style={{ minWidth: 260 }}>
+                        <textarea
+                          className="input"
+                          rows={2}
+                          style={{ borderRadius: 14, padding: 10, minHeight: 44 }}
+                          value={v.AV}
+                          placeholder="Blank = Claude writes from the creative"
+                          onChange={(e) => set(r.row, 'AV', e.target.value)}
+                          aria-label={`Copy notes row ${r.row}`}
+                        />
                       </td>
                     </tr>
                   );

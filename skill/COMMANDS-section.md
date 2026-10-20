@@ -36,7 +36,7 @@ G status · H slack_ts · I started_at · J finished_at · K note · L slack_thr
 
 Rules: never delete, reorder or clear COMMANDS rows. Only write G, I, J and K. The app reads COMMANDS every 30–60 s while a command is open and shows K to the team, so keep K short and specific.
 
-The app also edits these AD APPROVALS cells for people: **B, Y, Z and AO–AS** (it never writes formulas, F, V or AU). Always re-read the rows before acting, as the skill already does.
+The app also edits these AD APPROVALS cells for people: **B, Y, Z, AO–AS and AV (copy notes)** (it never writes formulas, F, V or AU). Always re-read the rows before acting, as the skill already does.
 
 **When you insert rows** (section 3, step 5e, extra creatives), the new row must get the formula cells of the row above: copy **C, D, E, G–U, W, AE and AT** from the row above (copy the formula, so the row references shift), then fill the inputs. A row without them has no ad name and no ✓/✗ check. If there are empty template rows already set up below (status blank, formulas in place), you may use those instead of inserting.
 

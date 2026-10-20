@@ -210,7 +210,15 @@ async function loadDropdown(spreadsheetId: string, a1: string): Promise<string[]
   type V = { sheets?: { data?: { rowData?: { values?: { dataValidation?: { condition?: { type: string; values?: { userEnteredValue: string }[] } } }[] }[] }[] }[] };
   const r = await gfetch<V>(`${SHEETS}/${spreadsheetId}?ranges=${enc(a1)}&fields=sheets.data.rowData.values.dataValidation`);
   const cond = r.sheets?.[0]?.data?.[0]?.rowData?.[0]?.values?.[0]?.dataValidation?.condition;
-  return cond?.type === 'ONE_OF_LIST' ? (cond.values ?? []).map((v) => v.userEnteredValue) : [];
+  if (cond?.type === 'ONE_OF_LIST') return (cond.values ?? []).map((v) => v.userEnteredValue);
+  if (cond?.type === 'ONE_OF_RANGE') {
+    // e.g. =META_LIST!$D$2:$D$3000 (campaigns / ad sets): read that range.
+    const range = (cond.values?.[0]?.userEnteredValue ?? '').replace(/^=/, '').replace(/\$/g, '');
+    if (!range) return [];
+    const [values] = await batchGet(spreadsheetId, [range]);
+    return [...new Set(values.flat().map((v) => String(v ?? '').trim()).filter(Boolean))];
+  }
+  return [];
 }
 
 export interface DriveFile {

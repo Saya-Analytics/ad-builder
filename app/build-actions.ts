@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { a1, isWritableApprovalCol, TABS } from '@/lib/columns';
 import { batchGet, dropdownOptions, getMeta } from '@/lib/google';
 import { loadClientState } from '@/lib/data';
-import { isBuilding, rowRanges, type ApprovalRow } from '@/lib/approvals';
+import { driveFolderId, isBuilding, rowRanges, type ApprovalRow } from '@/lib/approvals';
 import { setupValue } from '@/lib/setup';
 import { safeWriteMany, type CellResult } from '@/lib/writes';
 import { bust } from '@/lib/cache';
@@ -21,9 +21,11 @@ export interface PlanRow {
   state: string;
   problems: { title: string; fix: string; cols: string[] }[];
   /** Editable cells, as the sheet shows them now. */
-  cells: Record<'Y' | 'Z' | 'AO' | 'AP' | 'AQ' | 'AR' | 'AS', string>;
+  cells: Record<'Y' | 'Z' | 'AO' | 'AP' | 'AQ' | 'AR' | 'AS' | 'AV', string>;
   /** Where a Drive link was typed by mistake (brief or URL column), so it can be moved to Z. */
   driveElsewhere: string | null;
+  /** Other unbuilt rows with the same Drive link: Claude splits the folder into one row per creative. */
+  sharedWith: number[];
 }
 
 export interface BuildPlan {
@@ -42,7 +44,7 @@ export interface BuildPlan {
 const ACTIONS = ['USE EXISTING AD SET', 'CREATE NEW AD SET', 'CREATE NEW CAMPAIGN + NEW AD SET', 'SAME AS ROW ABOVE'];
 const isDrive = (s: string) => /drive\.google\.com\//.test(s);
 
-function toPlanRow(r: ApprovalRow, st: { state: string; problems: PlanRow['problems'] }): PlanRow {
+function toPlanRow(r: ApprovalRow, st: { state: string; problems: PlanRow['problems'] }, sharedWith: number[]): PlanRow {
   const elsewhere = [r.brief, r.url].find((v) => isDrive(v)) ?? null;
   return {
     row: r.row,
@@ -52,8 +54,9 @@ function toPlanRow(r: ApprovalRow, st: { state: string; problems: PlanRow['probl
     adType: r.adType,
     state: st.state,
     problems: st.problems,
-    cells: { Y: r.url, Z: r.drive, AO: r.action, AP: r.campaign, AQ: r.adSet, AR: r.copyFrom, AS: r.budget },
+    cells: { Y: r.url, Z: r.drive, AO: r.action, AP: r.campaign, AQ: r.adSet, AR: r.copyFrom, AS: r.budget, AV: r.copyNotes },
     driveElsewhere: isDrive(r.drive) ? null : elsewhere,
+    sharedWith,
   };
 }
 
@@ -67,9 +70,18 @@ export async function getBuildPlan(clientId: string, only?: number[]): Promise<B
   if (!loaded.ok) return { ...empty, error: loaded.error };
   const s = loaded.state;
 
+  const byDrive = new Map<string, number[]>();
+  for (const r of s.rows) {
+    const key = driveFolderId(r.drive);
+    if (!key || r.log.built) continue;
+    byDrive.set(key, [...(byDrive.get(key) ?? []), r.row]);
+  }
   const rows = s.rows
     .filter((r) => (only?.length ? only.includes(r.row) : isBuilding(r) && !r.log.built))
-    .map((r) => toPlanRow(r, s.status.get(r.row)!));
+    .map((r) => {
+      const key = driveFolderId(r.drive);
+      return toPlanRow(r, s.status.get(r.row)!, key ? (byDrive.get(key) ?? []).filter((n) => n !== r.row) : []);
+    });
 
   let campaigns: BuildPlan['campaigns'] = [];
   let adSets: string[] = [];

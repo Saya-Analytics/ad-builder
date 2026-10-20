@@ -11,11 +11,11 @@ import { CommandButton } from '@/components/Commands';
 export const dynamic = 'force-dynamic';
 
 const DEST = [
-  ['AO', '① What does Claude do?', 'action'],
-  ['AP', '② Campaign', 'campaign'],
-  ['AQ', '③ Ad set', 'adSet'],
-  ['AR', '④ Copy settings from', 'copyFrom'],
-  ['AS', '⑤ Daily budget', 'budget'],
+  ['AO', '① What does Claude do?', 'action', ''],
+  ['AP', '② Campaign', 'campaign', ''],
+  ['AQ', '③ Ad set', 'adSet', ''],
+  ['AR', '④ Copy settings from', 'copyFrom', 'The ad set whose settings Claude copies. Only when creating.'],
+  ['AS', '⑤ Daily budget', 'budget', 'Only when creating. Leave blank if the campaign is CBO.'],
 ] as const;
 
 const domain = (url: string) => {
@@ -171,10 +171,17 @@ export default async function RowDetail({ params }: { params: Promise<{ clientId
           <span className="small muted">AO–AS</span>
         </div>
         <div className="grid-cards" style={{ gap: 16 }}>
-          {DEST.map(([col, label, key], i) => (
-            <EditableField key={col} id={col} label={`${label} (${col})`} value={r[key]} options={destOptions[i]} save={save(col)} />
+          {DEST.map(([col, label, key, hint], i) => (
+            <EditableField key={col} id={col} label={`${label} (${col})`} value={r[key]} options={destOptions[i]} save={save(col)} hint={hint || undefined} allowOther={col !== 'AO'} />
           ))}
         </div>
+        <EditableField
+          id="AV"
+          label="📝 Copy notes for Claude (AV)"
+          value={r.copyNotes}
+          save={save('AV')}
+          hint="Leave blank and Claude writes the copy from the creative alone. Either way it reads the creative, the landing page and these notes."
+        />
         {r.check ? <span className="small muted">Sheet check (AT): {r.check}</span> : null}
       </section>
 

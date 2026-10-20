@@ -17,13 +17,13 @@ export const ADDABLE_TABS = [TABS.setup, TABS.commands] as const;
 export const APPROVALS_HEADER_ROW = 4;
 /** Row 5 is the EXAMPLE row. */
 export const APPROVALS_FIRST_ROW = 6;
-export const APPROVALS_LAST_COL = 'AU';
+export const APPROVALS_LAST_COL = 'AV'; // AV = 📝 COPY NOTES (optional, may be missing on older sheets)
 
 export const COPY_FIRST_ROW = 6;
 export const HOOKS_FIRST_ROW = 6;
 
 /** The only AD APPROVALS columns the app may write. Z is the Drive link people paste (Claude updates it after organizing). */
-export const WRITABLE_APPROVAL_COLS = ['B', 'Y', 'Z', 'AO', 'AP', 'AQ', 'AR', 'AS'] as const;
+export const WRITABLE_APPROVAL_COLS = ['B', 'Y', 'Z', 'AO', 'AP', 'AQ', 'AR', 'AS', 'AV'] as const;
 export type WritableApprovalCol = (typeof WRITABLE_APPROVAL_COLS)[number];
 
 export const STATUS_BUILDING = 'Building in ads manager';
