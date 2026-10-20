@@ -54,7 +54,7 @@ export default async function Clients({ searchParams }: { searchParams: Promise<
                 <Link prefetch={false} href={`/c/${c.id}`} className="strong" style={{ fontSize: 21, color: 'var(--ink)' }}>
                   {c.name}
                 </Link>
-                <span className={`status ${!l.ok || missing.length ? 'status-fix' : 'status-ready'}`}>{!l.ok ? 'Can’t read' : missing.length ? 'Setup incomplete' : 'Active'}</span>
+                <span className={`status ${!l.ok || missing.length || l.state.layoutIssue ? 'status-fix' : 'status-ready'}`}>{!l.ok ? 'Can’t read' : missing.length || l.state.layoutIssue ? 'Setup incomplete' : 'Active'}</span>
               </div>
               {!l.ok ? (
                 <span className="small">
@@ -62,6 +62,7 @@ export default async function Clients({ searchParams }: { searchParams: Promise<
                 </span>
               ) : null}
               {missing.length ? <span className="small">Missing tabs: {missing.join(', ')}</span> : null}
+              {l.ok && l.state.layoutIssue ? <span className="small">{l.state.layoutIssue}</span> : null}
               {addable.length ? <RepairTabsButton clientId={c.id} tabs={addable} /> : null}
               <span className="small muted">
                 {last ? `Last build ${longDate(last.date, { weekday: 'short', month: 'short', day: 'numeric' })} · ${last.total} ads` : 'No build logged yet'}

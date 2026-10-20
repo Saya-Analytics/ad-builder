@@ -43,6 +43,9 @@ export interface Blocker {
 
 export function blockers(s: ClientState, intervalMinutes: number, base: string): Blocker[] {
   const out: Blocker[] = [];
+  if (s.layoutIssue) {
+    out.push({ title: 'Old AD APPROVALS layout', fix: 'The sheet needs the new A–AU layout before Claude can build from it', action: 'See', href: `/clients#${s.client.id}` });
+  }
   if (s.missingTabs.length) {
     out.push({ title: 'Setup incomplete', fix: `Missing tabs: ${s.missingTabs.join(', ')}`, action: 'Open', href: `/clients#${s.client.id}` });
   }

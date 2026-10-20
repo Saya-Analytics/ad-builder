@@ -129,6 +129,17 @@ export function parseBuildLog(raw: string): BuildLog {
   };
 }
 
+/**
+ * The skill builds from the A–AU layout: AO "① WHAT DOES CLAUDE DO?" … AU "BUILD LOG".
+ * Older control sheets have a shorter layout (headline and copy typed in the row, no destination).
+ */
+export function approvalsLayoutIssue(header: string[]): string | null {
+  const at = (col: string) => (header[colToIndex(col)] ?? '').toString().toUpperCase();
+  if (at('AU').includes('BUILD LOG') && at('AO').includes('CLAUDE') && at('F').includes('COPY')) return null;
+  const width = header.filter((h) => (h ?? '').toString().trim()).length;
+  return `AD APPROVALS uses the old layout (${width} columns, no COPY SET, destination or BUILD LOG columns). The skill and the app need the new A–AU layout.`;
+}
+
 export function parseApprovals(values: string[][], firstRow = APPROVALS_FIRST_ROW): ApprovalRow[] {
   const rows: ApprovalRow[] = [];
   values.forEach((r, i) => {

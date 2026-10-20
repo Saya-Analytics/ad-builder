@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseApprovals, parseBuildLog, parseCopy, rowRanges, rowStatus, pipelineSteps } from './approvals.ts';
+import { approvalsLayoutIssue, parseApprovals, parseBuildLog, parseCopy, rowRanges, rowStatus, pipelineSteps } from './approvals.ts';
 import { parseSetup } from './setup.ts';
 import { isStale, parseCommands } from './commands.ts';
 import { colToIndex, indexToCol } from './columns.ts';
@@ -120,4 +120,11 @@ test('stale commands', () => {
 
 test('row ranges', () => {
   assert.equal(rowRanges([118, 113, 114, 115, 120]), '113–115, 118, 120');
+});
+
+test('old AD APPROVALS layout is detected', () => {
+  const header = row({ F: 'COPY SET', AO: '① WHAT DOES CLAUDE DO?', AU: 'BUILD LOG' });
+  assert.equal(approvalsLayoutIssue(header), null);
+  const legacy = ['PREVIEW', 'STATUS', 'Brand', 'AD Name', 'Headline', 'Primary Text', 'Description'];
+  assert.match(approvalsLayoutIssue(legacy) ?? '', /old layout \(7 columns/);
 });

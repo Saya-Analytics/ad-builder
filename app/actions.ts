@@ -1,7 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { a1, ADDABLE_TABS, isWritableApprovalCol, REQUIRED_TABS, TABS } from '@/lib/columns';
+import { a1, ADDABLE_TABS, APPROVALS_HEADER_ROW, isWritableApprovalCol, REQUIRED_TABS, TABS } from '@/lib/columns';
+import { approvalsLayoutIssue } from '@/lib/approvals';
 import { addTab, appendValues, batchGet, copyTabFrom, getMeta, GoogleError, serviceAccountEmail, updateValues } from '@/lib/google';
 import { getClient, loadClients, loadClientState, masterSheetId, MASTER_TAB, todayIn } from '@/lib/data';
 import { safeWrite, type WriteResult } from '@/lib/writes';
@@ -259,6 +260,7 @@ export interface ClientFormState {
   added?: string[];
   brands?: { brand: string; account: string }[];
   skill?: string;
+  layoutIssue?: string | null;
   fields?: Record<string, string>;
 }
 
@@ -300,6 +302,12 @@ export async function addClient(_: ClientFormState, form: FormData): Promise<Cli
     const toAdd = ADDABLE_TABS.filter((t) => !tabs.has(t));
     await addMissingTabs(sheetId, name, toAdd);
 
+    let layoutIssue: string | null = null;
+    if (tabs.has(TABS.approvals)) {
+      const [[head]] = await batchGet(sheetId, [a1(TABS.approvals, `A${APPROVALS_HEADER_ROW}:AU${APPROVALS_HEADER_ROW}`)], 'FORMATTED_VALUE', true);
+      layoutIssue = approvalsLayoutIssue(head ?? []);
+    }
+
     // Brands: an explicit list (portfolios), else the one brand the sheet uses, else the client name.
     const detected = tabs.has(TABS.approvals) ? await brandsInSheet(sheetId) : [];
     let brands = parseBrandLines(get('brands'), detected[0] ?? name);
@@ -318,7 +326,7 @@ export async function addClient(_: ClientFormState, form: FormData): Promise<Cli
 
     await appendValues(masterSheetId(), a1(MASTER_TAB, 'A:G'), [[id, name, sheetId, driveId, 'Active', todayIn(values.timezone ?? 'UTC'), '']]);
     revalidatePath('/', 'layout');
-    return { ok: true, clientId: id, missingRequired, added: toAdd, brands, skill };
+    return { ok: true, clientId: id, missingRequired, added: toAdd, brands, skill, layoutIssue };
   } catch (e) {
     return { ...fail(e), fields };
   }

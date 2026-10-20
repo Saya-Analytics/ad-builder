@@ -57,6 +57,13 @@ export default async function ClientLayout({ children, params }: { children: Rea
             <p className="notice">{client.name} is offboarded (since {client.offboardedOn || 'unknown'}). Read only.</p>
           </div>
         ) : null}
+        {state?.layoutIssue ? (
+          <div style={{ padding: '24px 24px 0' }}>
+            <p className="banner" role="alert">
+              {state.layoutIssue} Rows aren’t shown until the sheet is updated.
+            </p>
+          </div>
+        ) : null}
         {required.length || addable.length ? (
           <div style={{ padding: '24px 24px 0' }}>
             <div className="banner" role="alert">

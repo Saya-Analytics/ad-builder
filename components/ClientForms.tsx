@@ -35,6 +35,11 @@ export function AddClientForm({ serviceAccount, defaults }: { serviceAccount: st
             Brands in CLAUDE SETUP: {state.brands.map((b) => `${b.brand} → ${b.account || 'no ad account yet'}`).join(' · ')}
           </p>
         ) : null}
+        {state.layoutIssue ? (
+          <p className="banner small" role="alert">
+            {state.layoutIssue}
+          </p>
+        ) : null}
         {state.missingRequired?.length ? (
           <p className="banner small" role="alert">
             Setup incomplete: the sheet has no {state.missingRequired.join(', ')} tab. Claude needs them to write copy and hooks. Copy them from

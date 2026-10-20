@@ -1,8 +1,8 @@
 import 'server-only';
 import { cache } from 'react';
-import { a1, ADDABLE_TABS, APPROVALS_FIRST_ROW, APPROVALS_LAST_COL, COPY_FIRST_ROW, HOOKS_FIRST_ROW, REQUIRED_TABS, TABS } from './columns.ts';
+import { a1, ADDABLE_TABS, APPROVALS_FIRST_ROW, APPROVALS_HEADER_ROW, APPROVALS_LAST_COL, COPY_FIRST_ROW, HOOKS_FIRST_ROW, REQUIRED_TABS, TABS } from './columns.ts';
 import { batchGet, getMeta, GoogleError } from './google.ts';
-import { parseApprovals, parseCopy, parseHooks, rowStatus, type ApprovalRow, type CopySet, type Hook, type StatusResult } from './approvals.ts';
+import { approvalsLayoutIssue, parseApprovals, parseCopy, parseHooks, rowStatus, type ApprovalRow, type CopySet, type Hook, type StatusResult } from './approvals.ts';
 import { parseSetup, setupValue, SETUP_RANGE, type Setup } from './setup.ts';
 import { parseCommands, type Command } from './commands.ts';
 
@@ -55,6 +55,8 @@ export interface ClientState {
   client: Client;
   sheetTitle: string;
   missingTabs: string[];
+  /** Set when AD APPROVALS is not the layout the skill builds from (A–AU with ① … BUILD LOG). */
+  layoutIssue: string | null;
   setup: Setup | null;
   rows: ApprovalRow[];
   copy: CopySet[];
@@ -83,20 +85,24 @@ export const loadClientState = cache(async (clientId: string): Promise<LoadResul
       [TABS.commands, 'A2:L'],
     ];
     const present = ranges.filter(([t]) => tabs.has(t));
-    const got = await batchGet(client.sheetId, present.map(([t, r]) => a1(t, r)));
+    const header = tabs.has(TABS.approvals) ? [a1(TABS.approvals, `A${APPROVALS_HEADER_ROW}:${APPROVALS_LAST_COL}${APPROVALS_HEADER_ROW}`)] : [];
+    const got = await batchGet(client.sheetId, [...present.map(([t, r]) => a1(t, r)), ...header]);
     const by = new Map(present.map(([t], i) => [t, got[i]]));
+    const layoutIssue = header.length ? approvalsLayoutIssue(got[got.length - 1][0] ?? []) : null;
 
     const setup = by.has(TABS.setup) ? parseSetup(by.get(TABS.setup)!) : null;
     const timezone = setupValue(setup, 'timezone') || process.env.DEFAULT_TIMEZONE || 'UTC';
     const copy = parseCopy(by.get(TABS.copy) ?? []);
     const copyByCode = new Map(copy.map((c) => [c.code, c]));
-    const rows = parseApprovals(by.get(TABS.approvals) ?? []);
+    // An old-layout tab would be read into the wrong fields, so its rows are not shown.
+    const rows = layoutIssue ? [] : parseApprovals(by.get(TABS.approvals) ?? []);
     return {
       ok: true,
       state: {
         client,
         sheetTitle: meta.title,
         missingTabs,
+        layoutIssue,
         setup,
         rows,
         copy,
