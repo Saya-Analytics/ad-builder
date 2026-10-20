@@ -23,7 +23,7 @@ export function AddClientForm({ serviceAccount, defaults }: { serviceAccount: st
   const [skillTouched, setSkillTouched] = useState(!!f.skill);
   const [skill, setSkill] = useState(f.skill ?? '');
   const [portfolio, setPortfolio] = useState(!!f.brands);
-  const shownSkill = skillTouched ? skill : name ? `${slugify(name)}-ad-builder` : '';
+  const shownSkill = skillTouched ? skill : 'ad-builder';
 
   if (state.ok && state.clientId) {
     return (
@@ -85,7 +85,7 @@ export function AddClientForm({ serviceAccount, defaults }: { serviceAccount: st
           <input
             className="input"
             name="skill"
-            placeholder="client-ad-builder"
+            placeholder="ad-builder"
             value={shownSkill}
             onChange={(e) => {
               setSkillTouched(true);

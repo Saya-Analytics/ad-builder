@@ -7,7 +7,7 @@ import { addTab, appendValues, batchGet, copyTabFrom, getMeta, GoogleError, serv
 import { getClient, loadClients, loadClientState, masterSheetId, MASTER_TAB, todayIn } from '@/lib/data';
 import { safeWrite, type WriteResult } from '@/lib/writes';
 import { COMMAND_HEADER, COMMAND_TYPES, commandPrompt, newCommandId, type CommandType } from '@/lib/commands';
-import { BRANDS_HEADER, onboardingDefaults, parseBrandLines, parseSetup, SETUP_FIELDS, SETUP_RANGE, setupTemplate, setupValue, type SetupKey } from '@/lib/setup';
+import { BRANDS_HEADER, onboardingDefaults, parseBrandLines, parseSetup, SETUP_FIELDS, SETUP_RANGE, SHARED_SKILL, setupTemplate, setupValue, type SetupKey } from '@/lib/setup';
 import { bust } from '@/lib/cache';
 import { postMessage, slackConfigured, todaysParent } from '@/lib/slack';
 import { currentUser } from '@/lib/auth';
@@ -106,7 +106,7 @@ export async function sendCommand(clientId: string, command: CommandType, args =
   const by = await currentUser();
   const id = newCommandId();
   const clientName = setupValue(s.setup, 'clientName') || s.client.name;
-  const skill = setupValue(s.setup, 'skill') || process.env.DEFAULT_SKILL || 'ad-builder';
+  const skill = setupValue(s.setup, 'skill') || SHARED_SKILL;
   const prompt = commandPrompt({ skill, command, args: args.trim(), clientName, sheetId: s.client.sheetId, id });
   const chatLink = setupValue(s.setup, 'claudeChat') || undefined;
   const channel = setupValue(s.setup, 'slackChannelId');
@@ -165,7 +165,7 @@ export async function nudgeCommand(clientId: string, commandId: string): Promise
   const c = s.commands.find((x) => x.id === commandId);
   if (!c) return { ok: false, error: 'Command not found.' };
   const clientName = setupValue(s.setup, 'clientName') || s.client.name;
-  const skill = setupValue(s.setup, 'skill') || process.env.DEFAULT_SKILL || 'ad-builder';
+  const skill = setupValue(s.setup, 'skill') || SHARED_SKILL;
   const prompt = commandPrompt({ skill, command: c.command, args: c.args, clientName, sheetId: s.client.sheetId, id: c.id });
   const chatLink = setupValue(s.setup, 'claudeChat') || undefined;
   const channel = setupValue(s.setup, 'slackChannelId');
@@ -316,7 +316,7 @@ export async function addClient(_: ClientFormState, form: FormData): Promise<Cli
     if (!brands.length) brands = (detected.length ? detected : [name]).map((brand) => ({ brand, account: detected.length > 1 ? '' : account }));
     else if (account && brands.every((b) => !b.account)) brands = brands.map((b) => ({ ...b, account }));
 
-    const skill = get('skill') || `${id}-ad-builder`;
+    const skill = get('skill') || SHARED_SKILL;
     const values: Partial<Record<SetupKey, string>> = {
       ...onboardingDefaults(),
       clientName: name,

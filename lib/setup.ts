@@ -97,14 +97,19 @@ export function setupTemplate(clientName: string, defaults: Partial<Record<Setup
 }
 
 /** What every new client starts with. Change these in the Vercel environment. */
+/** One skill for every client; the client comes from the sheet link in each request. */
+export const SHARED_SKILL = 'ad-builder';
+
 export function onboardingDefaults(): Partial<Record<SetupKey, string>> {
   const env = process.env;
   return {
     buildDay: env.DEFAULT_BUILD_DAY ?? 'Thursday',
     timezone: env.DEFAULT_TIMEZONE ?? 'America/Los_Angeles',
     afterBuildStatus: env.DEFAULT_AFTER_BUILD_STATUS ?? 'Paused',
-    slackChannelId: env.DEFAULT_SLACK_CHANNEL_ID ?? '',
-    slackTags: env.DEFAULT_SLACK_TAGS ?? '',
+    // Same Slack channel and tags as Ashtel unless set otherwise.
+    slackChannelId: env.DEFAULT_SLACK_CHANNEL_ID || 'C0C9S4EKJ3E',
+    slackTags: env.DEFAULT_SLACK_TAGS || '<@U0C24G9D2EP> <@U031L23RUE7>',
+    skill: SHARED_SKILL,
     commandInterval: env.DEFAULT_COMMAND_INTERVAL ?? '60',
   };
 }

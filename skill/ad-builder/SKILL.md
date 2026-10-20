@@ -1,11 +1,15 @@
 ---
-name: ashtel-studios-ad-builder
-description: Ashtel Studios ad builder (EVO, Get ARU, Get YAYA, Smart Care). Daily check and Thursday build for the Ashtel Studios control sheet. Organizes creative drops in Drive, matches them to rows, writes copy into the COPY tab, logs hooks, builds PAUSED Meta ads through AdManage, and posts progress and blockers to Slack. Use for any Ashtel Studios ad check, build, "fixed, build them", "continue" or "check" request.
+name: ad-builder
+description: Ad builder for every client control sheet (Ashtel Studios, MissA and any new client; replaces ashtel-studios-ad-builder). Daily check and build day for a client's control sheet. Organizes creative drops in Drive, matches them to rows, writes copy into the COPY tab, logs hooks, builds PAUSED Meta ads through AdManage, and posts progress and blockers to Slack. Use for any ad check, build, "fixed, build them", "continue" or "check" request, and for every request from the Ad Builder app ("run ad-builder …").
 ---
 
-# Ashtel Studios Ad Builder
+# Ad Builder (all clients)
 
-This skill turns rows in a client's control sheet into built, **paused** Meta ads.
+This skill turns rows in a client's control sheet into built, **paused** Meta ads. **One skill for every client.**
+- **Which client:** the request names the client and gives its sheet link. Everything client-specific comes from that sheet's **CLAUDE SETUP** tab: ad accounts, Slack, tags, timezone, build day, chat link.
+- **Never mix clients.** Use that client's ad accounts only. Use one Slack parent message per client per day.
+- **Slack:** every client posts to the same channel (`C0C9S4EKJ3E`, #ad-building-thursday) with the same tags, unless their CLAUDE SETUP says otherwise.
+- **Client notes:** the section "Client notes" below only fills gaps when a CLAUDE SETUP value is missing.
 
 It has two modes:
 - **DAILY CHECK** runs every day except build day. It organizes new creative drops in Drive and matches them to briefs (section 3), checks every row and reports. It **never creates anything in Ads Manager**.
@@ -41,9 +45,22 @@ The Ad Builder app repeats this list at the end of every request it sends ("Reme
 8. **Ask the people:** anything a person must do or decide goes in the Slack thread, tagged, and in the chat.
 9. **Close the loop:** update the COMMANDS row (G, I, J, K) and post the result in today's Slack thread.
 
-## Ashtel Studios: fixed config (use when CLAUDE SETUP is missing)
+## Client notes (only when a CLAUDE SETUP value is missing)
 
-The CLAUDE SETUP tab wins if it exists. Until it does, use this:
+The CLAUDE SETUP tab always wins. New clients need no notes here: the app fills their CLAUDE SETUP at onboarding.
+
+### MissA (Shop MissA)
+
+| Item | Value |
+|---|---|
+| Control sheet | `1ueuudRj-kZR2gBGHOHkcSChjZ7sA4nMj2IwvlO7447I` (tab AD APPROVALS; the old tab `()AD APPROVALS` is an archive, so never touch it) |
+| Brand (AF) | `ShopMissA`, a single brand |
+| Site | shopmissa.com (homepage `https://shopmissa.com/`) |
+| Build day / timezone | Thursday · America/Los_Angeles |
+| Status after build (B) | Paused |
+| Meta ad account | not set yet. Ask in Slack until CLAUDE SETUP has it. |
+
+### Ashtel Studios (EVO, Get ARU, Get YAYA, Smart Care)
 
 | Item | Value |
 |---|---|
@@ -536,7 +553,7 @@ Every one of these ends with a short Slack message (max 4 lines, tagged) unless 
 | Huge account (100+ campaigns / 200+ ad sets) | Don't page through everything. Use `list_campaigns` with `status=ACTIVE` first; if the named campaign isn't there, it's usually on the newest page. Then `list_adsets` with `campaignId`. |
 | Every row in a batch says CREATE NEW AD SET with the same name | Create it **once** (first row), reuse it for all the others. Log `ADSET_CREATED <id>` on the first row only. |
 | Video product ≠ product URL in Y | Build as-is (PAUSED), put `⚠ video <X>, URL <Y>` in AU, and add it to the Slack "check before turning on" list. Never change Y. |
-| CLAUDE SETUP tab missing | Use the Ashtel config above; mention "CLAUDE SETUP tab missing" once in the Slack blockers. Don't change B until the after-build status is known. |
+| CLAUDE SETUP tab missing | Use that client's notes above; mention "CLAUDE SETUP tab missing" once in the Slack blockers. Don't change B until the after-build status is known. |
 | Two ad accounts with the same name | Skip that brand, put both IDs in Slack, wait for a human to pick. |
 | Section label rows between data rows (e.g. "New August Creatives - EVO") | Not in scope. Always verify row numbers by reading column D for the exact range before writing. |
 
