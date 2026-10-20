@@ -43,7 +43,9 @@ Home (greeting, days to build day, Ask Claude, This week, Needs you, Last build,
 
 ## Setup
 
-1. Google Cloud project with the **Sheets** and **Drive** APIs on; create a service account and a JSON key.
+1. Google Cloud project with the **Sheets** and **Drive** APIs on, and a service account. Sign-in, either:
+   - **Keyless (recommended on Vercel):** a Workload Identity pool with an OIDC provider for Vercel (issuer `https://oidc.vercel.com/<team-slug>`, audience `https://vercel.com/<team-slug>`, condition `assertion.project == '<vercel-project>'`), and `roles/iam.workloadIdentityUser` on the service account for that pool. Set `GCP_PROJECT_NUMBER`, `GCP_WORKLOAD_IDENTITY_POOL_ID`, `GCP_WORKLOAD_IDENTITY_POOL_PROVIDER_ID`, `GCP_SERVICE_ACCOUNT_EMAIL`. Works even where the org blocks service account keys.
+   - **JSON key:** `GOOGLE_SERVICE_ACCOUNT_JSON`.
 2. Create the **AD BUILDER CLIENTS** master sheet with a `CLIENTS` tab and the header row above. Share it, every client control sheet (Editor) and every Drive root (Viewer) with the service account email.
 3. Optional: a template sheet with `CLAUDE SETUP` and `COMMANDS` tabs (`TEMPLATE_SHEET_ID`). Without it the app creates both tabs itself.
 4. Slack app with `chat:write` and `channels:history`, installed and invited to each client channel. Find Claude's Slack user ID for `CLAUDE_SLACK_USER_ID`.

@@ -1,9 +1,14 @@
 import 'server-only';
 import { readFileSync } from 'node:fs';
-import { JWT } from 'google-auth-library';
+import { IdentityPoolClient, JWT } from 'google-auth-library';
+import { getVercelOidcToken } from '@vercel/oidc';
 import { colToIndex } from './columns.ts';
 
 // Thin REST wrappers around the Sheets and Drive APIs, authenticated as the service account.
+// Two ways to sign in as the service account:
+//  - keyless (preferred on Vercel): Workload Identity Federation with the Vercel OIDC token,
+//    when GCP_WORKLOAD_IDENTITY_POOL_PROVIDER_ID is set;
+//  - a JSON key in GOOGLE_SERVICE_ACCOUNT_JSON.
 // Set FAKE_SHEETS_FILE to a local JSON fixture to run the UI without Google (dev only).
 
 export class GoogleError extends Error {
@@ -23,7 +28,29 @@ interface ServiceAccount {
 }
 
 let account: ServiceAccount | null = null;
-let jwt: JWT | null = null;
+let auth: { getAccessToken(): Promise<{ token?: string | null }> } | null = null;
+
+const federated = () => !!process.env.GCP_WORKLOAD_IDENTITY_POOL_PROVIDER_ID;
+
+function authClient() {
+  if (auth) return auth;
+  if (federated()) {
+    const env = process.env;
+    const pool = `projects/${env.GCP_PROJECT_NUMBER}/locations/global/workloadIdentityPools/${env.GCP_WORKLOAD_IDENTITY_POOL_ID}`;
+    auth = new IdentityPoolClient({
+      audience: `//iam.googleapis.com/${pool}/providers/${env.GCP_WORKLOAD_IDENTITY_POOL_PROVIDER_ID}`,
+      subject_token_type: 'urn:ietf:params:oauth:token-type:jwt',
+      token_url: 'https://sts.googleapis.com/v1/token',
+      service_account_impersonation_url: `https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${env.GCP_SERVICE_ACCOUNT_EMAIL}:generateAccessToken`,
+      subject_token_supplier: { getSubjectToken: () => getVercelOidcToken() },
+      scopes: SCOPES,
+    });
+  } else {
+    const sa = serviceAccount();
+    auth = new JWT({ email: sa.client_email, key: sa.private_key, scopes: SCOPES });
+  }
+  return auth;
+}
 
 function serviceAccount(): ServiceAccount {
   if (account) return account;
@@ -36,6 +63,7 @@ function serviceAccount(): ServiceAccount {
 
 export function serviceAccountEmail(): string {
   if (fake()) return 'ad-builder@example.iam.gserviceaccount.com';
+  if (federated()) return process.env.GCP_SERVICE_ACCOUNT_EMAIL ?? '(service account not configured)';
   try {
     return serviceAccount().client_email;
   } catch {
@@ -44,11 +72,7 @@ export function serviceAccountEmail(): string {
 }
 
 async function gfetch<T>(url: string, init: RequestInit = {}): Promise<T> {
-  if (!jwt) {
-    const sa = serviceAccount();
-    jwt = new JWT({ email: sa.client_email, key: sa.private_key, scopes: SCOPES });
-  }
-  const { token } = await jwt.getAccessToken();
+  const { token } = await authClient().getAccessToken();
   const res = await fetch(url, {
     ...init,
     cache: 'no-store',
