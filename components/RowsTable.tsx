@@ -19,13 +19,13 @@ export function BrandFilter({ base, brands, current }: { base: string; brands: {
   const all = brands.reduce((n, b) => n + b.n, 0);
   return (
     <div className="wrap">
-      <Link href={base} className="pill" aria-pressed={!current}>
+      <Link prefetch={false} href={base} className="pill" aria-pressed={!current}>
         All · {all}
       </Link>
       {brands
         .filter((b) => b.n)
         .map((b) => (
-          <Link key={b.brand} href={`${base}?brand=${encodeURIComponent(b.brand)}`} className="pill" aria-pressed={current === b.brand}>
+          <Link prefetch={false} key={b.brand} href={`${base}?brand=${encodeURIComponent(b.brand)}`} className="pill" aria-pressed={current === b.brand}>
             {b.brand} · {b.n}
           </Link>
         ))}
@@ -60,7 +60,7 @@ export function RowsTable({ state, rows }: { state: ClientState; rows: ApprovalR
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                       <div className="thumb" aria-hidden="true" />
                       <div style={{ minWidth: 0 }}>
-                        <Link href={`${base}/rows/${r.row}`} className="strong" style={{ fontSize: 15, color: 'var(--ink)' }}>
+                        <Link prefetch={false} href={`${base}/rows/${r.row}`} className="strong" style={{ fontSize: 15, color: 'var(--ink)' }}>
                           {r.differentiation || r.adId || `Row ${r.row}`}
                         </Link>
                         <div className="xs muted">{[r.brand, r.product].filter(Boolean).join(' · ')}</div>
@@ -73,7 +73,7 @@ export function RowsTable({ state, rows }: { state: ClientState; rows: ApprovalR
                   </td>
                   <td className="small">{r.copySet ? copyCode(r.copySet) : <span className="muted">Claude writes</span>}</td>
                   <td>
-                    <Link href={`${base}/rows/${r.row}`} className={`status status-${st.state}`} title={st.problems.map((p) => p.title).join('\n') || undefined}>
+                    <Link prefetch={false} href={`${base}/rows/${r.row}`} className={`status status-${st.state}`} title={st.problems.map((p) => p.title).join('\n') || undefined}>
                       {statusChip(st.state, st.problems, r.status)}
                     </Link>
                   </td>

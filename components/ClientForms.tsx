@@ -5,38 +5,137 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { addBrand, addClient, offboardClient, repairTabs, type ClientFormState } from '@/app/actions';
 
-export function AddClientForm({ serviceAccount }: { serviceAccount: string }) {
+export interface OnboardingDefaults {
+  buildDay: string;
+  timezone: string;
+  afterBuildStatus: string;
+  slackChannelId: string;
+  slackTags: string;
+}
+
+const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const slugify = (s: string) => s.toLowerCase().normalize('NFKD').replace(/[^\w\s-]/g, '').trim().replace(/[\s_]+/g, '-');
+
+export function AddClientForm({ serviceAccount, defaults }: { serviceAccount: string; defaults: OnboardingDefaults }) {
   const [state, action, pending] = useActionState<ClientFormState, FormData>(addClient, {});
+  const f = state.fields ?? {};
+  const [name, setName] = useState(f.name ?? '');
+  const [skillTouched, setSkillTouched] = useState(!!f.skill);
+  const [skill, setSkill] = useState(f.skill ?? '');
+  const [portfolio, setPortfolio] = useState(!!f.brands);
+  const shownSkill = skillTouched ? skill : name ? `${slugify(name)}-ad-builder` : '';
+
   if (state.ok && state.clientId) {
     return (
       <div className="card">
         <h2 className="h2">Client added</h2>
         {state.added?.length ? <p className="small">Added tabs: {state.added.join(', ')}.</p> : null}
-        {state.missingRequired?.length ? (
+        {state.brands?.length ? (
           <p className="small">
-            <strong>Setup incomplete:</strong> the sheet has no {state.missingRequired.join(', ')} tab. The app can’t create these; copy them from another control sheet.
+            Brands in CLAUDE SETUP: {state.brands.map((b) => `${b.brand} → ${b.account || 'no ad account yet'}`).join(' · ')}
           </p>
         ) : null}
-        <SetupChecklist clientId={state.clientId} />
+        {state.missingRequired?.length ? (
+          <p className="banner small" role="alert">
+            Setup incomplete: the sheet has no {state.missingRequired.join(', ')} tab. Claude needs them to write copy and hooks. Copy them from
+            another control sheet (right-click the tab → Copy to → this sheet, then rename it).
+          </p>
+        ) : null}
+        <SetupChecklist clientId={state.clientId} skill={state.skill} />
       </div>
     );
   }
   return (
-    <form action={action} className="card" style={{ maxWidth: 640 }}>
+    <form action={action} className="card" style={{ maxWidth: 760 }} autoComplete="off">
       <h2 className="h2">Add a client</h2>
-      <p className="small muted">Share the control sheet with {serviceAccount} (Editor) first. The app checks its tabs and adds CLAUDE SETUP and COMMANDS if they’re missing.</p>
-      <label className="field">
-        Client name
-        <input className="input" name="name" required placeholder="Ashtel Studios" />
+      <p className="small muted">
+        First share the control sheet with {serviceAccount} as Editor, and the creatives folder as Viewer. The app checks the sheet, adds the CLAUDE SETUP
+        and COMMANDS tabs and fills them in.
+      </p>
+      <div className="grid-cards" style={{ gap: 16 }}>
+        <label className="field">
+          Client name
+          <input className="input" name="name" required placeholder="MissA" value={name} onChange={(e) => setName(e.target.value)} />
+        </label>
+        <label className="field">
+          Meta ad account
+          <input className="input" name="account" placeholder="act_…" defaultValue={f.account} />
+          <span className="xs muted">The client’s ad account. Can be added later in Settings.</span>
+        </label>
+        <label className="field">
+          Control sheet link
+          <input className="input" name="sheet" required placeholder="https://docs.google.com/spreadsheets/d/…" defaultValue={f.sheet} />
+        </label>
+        <label className="field">
+          Creatives folder in Drive
+          <input className="input" name="drive" required placeholder="https://drive.google.com/drive/folders/…" defaultValue={f.drive} />
+        </label>
+        <label className="field">
+          Claude chat for this client
+          <input className="input" name="chat" type="url" placeholder="https://claude.ai/…" defaultValue={f.chat} />
+          <span className="xs muted">Create a new chat or project in Claude for the client and paste its link.</span>
+        </label>
+        <label className="field">
+          Skill
+          <input
+            className="input"
+            name="skill"
+            placeholder="client-ad-builder"
+            value={shownSkill}
+            onChange={(e) => {
+              setSkillTouched(true);
+              setSkill(e.target.value);
+            }}
+          />
+          <span className="xs muted">The skill Claude runs for this client.</span>
+        </label>
+        <label className="field">
+          Build day
+          <select className="select" name="buildDay" defaultValue={f.buildDay ?? defaults.buildDay}>
+            {DAYS.map((d) => (
+              <option key={d}>{d}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <label className="small" style={{ display: 'flex', gap: 10, alignItems: 'center', minHeight: 44 }}>
+        <input type="checkbox" checked={portfolio} onChange={(e) => setPortfolio(e.target.checked)} />
+        This client has several brands (a portfolio, like Ashtel Studios)
       </label>
-      <label className="field">
-        Control sheet link
-        <input className="input" name="sheet" required placeholder="https://docs.google.com/spreadsheets/d/…" />
-      </label>
-      <label className="field">
-        Drive root folder link
-        <input className="input" name="drive" required placeholder="https://drive.google.com/drive/folders/…" />
-      </label>
+      {portfolio ? (
+        <label className="field">
+          Brands, one per line: brand exactly as in column AF | ad account
+          <textarea className="input" name="brands" rows={4} style={{ borderRadius: 18, padding: 14 }} placeholder={'EVO | act_970523986836813\nGet ARU | act_1494497458618520'} defaultValue={f.brands} />
+        </label>
+      ) : (
+        <p className="xs muted">Single brand: the app uses the brand name the sheet already has in column AF, or the client name.</p>
+      )}
+
+      <details className="small">
+        <summary style={{ cursor: 'pointer', minHeight: 44, display: 'inline-flex', alignItems: 'center', color: 'var(--accent)' }}>
+          Defaults: {defaults.timezone} · after build “{defaults.afterBuildStatus}” · Slack {defaults.slackChannelId || 'not set'}
+        </summary>
+        <div className="grid-cards" style={{ gap: 16, marginTop: 8 }}>
+          <label className="field">
+            Timezone
+            <input className="input" name="timezone" defaultValue={f.timezone ?? defaults.timezone} />
+          </label>
+          <label className="field">
+            Status after Claude builds
+            <input className="input" name="afterBuildStatus" defaultValue={f.afterBuildStatus ?? defaults.afterBuildStatus} />
+          </label>
+          <label className="field">
+            Slack channel ID
+            <input className="input" name="slackChannelId" defaultValue={f.slackChannelId ?? defaults.slackChannelId} />
+          </label>
+          <label className="field">
+            Tag on roadblocks
+            <input className="input" name="slackTags" defaultValue={f.slackTags ?? defaults.slackTags} />
+          </label>
+        </div>
+      </details>
+
       {state.error ? (
         <p className="banner" role="alert">
           {state.error}
@@ -51,13 +150,12 @@ export function AddClientForm({ serviceAccount }: { serviceAccount: string }) {
   );
 }
 
-export function SetupChecklist({ clientId }: { clientId: string }) {
+export function SetupChecklist({ clientId, skill }: { clientId: string; skill?: string }) {
   const steps = [
-    ['Fill CLAUDE SETUP', <Link key="s" href={`/c/${clientId}/settings`}>Settings ›</Link>, 'Build day, timezone, Slack channel, tags, status after build, Claude chat link'],
-    ['Add the brands', <Link key="b" href={`/c/${clientId}/settings#brands`}>Settings ›</Link>, 'One row per brand (as in column AF) → act_… ad account'],
-    ['Invite Claude to the Slack channel', null, 'So the @Claude tag reaches it'],
-    ['Create the scheduled task in Claude', null, 'Daily, running the client’s skill; it reads COMMANDS on every run'],
-    ['Share the Drive root with the service account', null, 'Viewer is enough, for video previews'],
+    ['Check the settings', <Link prefetch={false} key="s" href={`/c/${clientId}/settings`}>Settings ›</Link>, 'Filled from the form and the defaults. Add the ad account here if you skipped it.'],
+    ['Create the skill in Claude', null, `${skill ? `“${skill}”: ` : ''}copy an existing ad-builder skill and change its client config`],
+    ['Create the scheduled task in Claude', null, 'In the client’s Claude chat, running the skill daily. It reads COMMANDS on every run.'],
+    ['Make sure Claude is in the Slack channel', null, 'So the @Claude tag reaches it'],
   ] as const;
   return (
     <div>

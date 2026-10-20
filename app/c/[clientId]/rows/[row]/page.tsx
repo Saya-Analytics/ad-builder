@@ -65,7 +65,7 @@ export default async function RowDetail({ params }: { params: Promise<{ clientId
   return (
     <main className="page page-narrow">
       <div>
-        <Link href={`/c/${clientId}#rows`} style={{ fontSize: 17, minHeight: 44, display: 'inline-flex', alignItems: 'center' }}>
+        <Link prefetch={false} href={`/c/${clientId}#rows`} style={{ fontSize: 17, minHeight: 44, display: 'inline-flex', alignItems: 'center' }}>
           ‹ All rows
         </Link>
       </div>

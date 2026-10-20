@@ -12,8 +12,8 @@ export type WriteResult =
 export async function safeWrite(spreadsheetId: string, range: string, expected: string, value: string): Promise<WriteResult> {
   if (value.trim().startsWith('=')) return { ok: false, error: 'Formulas can’t be written from the app.' };
   const [[shown], [formula]] = await Promise.all([
-    batchGet(spreadsheetId, [range], 'FORMATTED_VALUE'),
-    batchGet(spreadsheetId, [range], 'FORMULA'),
+    batchGet(spreadsheetId, [range], 'FORMATTED_VALUE', true),
+    batchGet(spreadsheetId, [range], 'FORMULA', true),
   ]);
   const current = (shown?.[0]?.[0] ?? '').toString();
   const raw = (formula?.[0]?.[0] ?? '').toString();

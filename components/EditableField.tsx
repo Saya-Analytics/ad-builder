@@ -62,7 +62,7 @@ export function EditableField({
       <label htmlFor={`${id ?? label}-input`}>{label}</label>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {opts ? (
-          <select id={`${id ?? label}-input`} className="select" style={{ flex: '1 1 220px' }} value={draft} onChange={(e) => setDraft(e.target.value)}>
+          <select autoComplete="off" id={`${id ?? label}-input`} className="select" style={{ flex: '1 1 220px' }} value={draft} onChange={(e) => setDraft(e.target.value)}>
             {!draft ? <option value="">—</option> : null}
             {opts.map((o) => (
               <option key={o} value={o}>
@@ -72,6 +72,7 @@ export function EditableField({
           </select>
         ) : (
           <input
+            autoComplete="off"
             id={`${id ?? label}-input`}
             className="input"
             style={{ flex: '1 1 220px' }}

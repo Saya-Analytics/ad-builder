@@ -86,7 +86,7 @@ export default async function Builds({ params }: { params: Promise<{ clientId: s
                         Open in Ads Manager ›
                       </a>
                     ) : (
-                      <Link href={`/c/${clientId}/settings#brands`} className="small">
+                      <Link prefetch={false} href={`/c/${clientId}/settings#brands`} className="small">
                         No confirmed ad account for {x.brand} ›
                       </Link>
                     )}
@@ -99,7 +99,7 @@ export default async function Builds({ params }: { params: Promise<{ clientId: s
               <div className="tile on-dark">
                 <span className="strong">Check before turning on</span>
                 {warnings.map((w) => (
-                  <Link key={w.row} href={`/c/${clientId}/rows/${w.row}`} className="small">
+                  <Link prefetch={false} key={w.row} href={`/c/${clientId}/rows/${w.row}`} className="small">
                     Row {w.row}: {w.text} ›
                   </Link>
                 ))}

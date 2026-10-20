@@ -6,6 +6,7 @@ import { Icon } from './Icon';
 import { NavLink } from './NavLink';
 import { Search, type SearchItem } from './Search';
 import { CommandButton } from './Commands';
+import { RefreshButton } from './RefreshButton';
 
 export interface Connection {
   name: string;
@@ -64,7 +65,7 @@ export function Sidebar({
         </summary>
         <div className="menu" role="menu">
           {clients.map((x) => (
-            <Link key={x.id} href={`/c/${x.id}`} className="navbtn" role="menuitem" aria-current={x.id === client.id ? 'page' : undefined}>
+            <Link prefetch={false} key={x.id} href={`/c/${x.id}`} className="navbtn" role="menuitem" aria-current={x.id === client.id ? 'page' : undefined}>
               <span className="avatar" style={{ width: 26, height: 26, fontSize: 11 }}>
                 {initials(x.name)}
               </span>
@@ -72,10 +73,10 @@ export function Sidebar({
             </Link>
           ))}
           <div className="side-rule" style={{ margin: '6px 4px' }} />
-          <Link href="/clients#add" className="navbtn" role="menuitem">
+          <Link prefetch={false} href="/clients#add" className="navbtn" role="menuitem">
             <Icon name="plus" /> Add client
           </Link>
-          <Link href="/clients" className="navbtn" role="menuitem">
+          <Link prefetch={false} href="/clients" className="navbtn" role="menuitem">
             <Icon name="clients" /> All clients · offboard
           </Link>
         </div>
@@ -90,6 +91,7 @@ export function Sidebar({
           confirm={`Ask Claude to build the ${c?.ready.length ?? 0} ready rows for ${client.name}? Everything is built PAUSED.`}
         />
       ) : null}
+      <RefreshButton />
       <Search items={search} />
 
       <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -106,7 +108,7 @@ export function Sidebar({
           <div className="side-rule" />
           <span className="side-label">Brands</span>
           {brands.map((b, i) => (
-            <Link
+            <Link prefetch={false}
               key={b.brand}
               href={`${base}/rows?brand=${encodeURIComponent(b.brand)}`}
               className="navbtn"
@@ -136,7 +138,7 @@ export function Sidebar({
         <a className="ghosticon" href={`https://docs.google.com/spreadsheets/d/${client.sheetId}`} target="_blank" rel="noreferrer" aria-label="Open the control sheet">
           <Icon name="sheet" />
         </a>
-        <Link className="ghosticon" href={`${base}/settings`} aria-label="Settings">
+        <Link prefetch={false} className="ghosticon" href={`${base}/settings`} aria-label="Settings">
           <Icon name="settings" />
         </Link>
       </div>

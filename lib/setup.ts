@@ -95,3 +95,30 @@ export function setupTemplate(clientName: string, defaults: Partial<Record<Setup
   rows.push([], [BRANDS_HEADER, 'Brand (exactly as in AF) → act_…']);
   return rows;
 }
+
+/** What every new client starts with. Change these in the Vercel environment. */
+export function onboardingDefaults(): Partial<Record<SetupKey, string>> {
+  const env = process.env;
+  return {
+    buildDay: env.DEFAULT_BUILD_DAY ?? 'Thursday',
+    timezone: env.DEFAULT_TIMEZONE ?? 'America/Los_Angeles',
+    afterBuildStatus: env.DEFAULT_AFTER_BUILD_STATUS ?? 'Paused',
+    slackChannelId: env.DEFAULT_SLACK_CHANNEL_ID ?? '',
+    slackTags: env.DEFAULT_SLACK_TAGS ?? '',
+    commandInterval: env.DEFAULT_COMMAND_INTERVAL ?? '60',
+  };
+}
+
+/** "Brand | act_123" lines → pairs. A line with only an act_ id gets the brand `fallbackBrand`. */
+export function parseBrandLines(text: string, fallbackBrand: string): { brand: string; account: string }[] {
+  return text
+    .split(/\n+/)
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .map((l) => {
+      const [a, b] = l.split(/\s*[|,;\t]\s*/);
+      if (b === undefined && /^act_\d+$/.test(a)) return { brand: fallbackBrand, account: a };
+      return { brand: a, account: b ?? '' };
+    })
+    .filter((x) => x.brand);
+}

@@ -1,4 +1,5 @@
 import 'server-only';
+import { memo } from './cache.ts';
 
 // Slack Web API, bot token with chat:write + channels:history.
 // The app only posts command tags and reads threads; Claude does all the reporting.
@@ -27,12 +28,14 @@ async function call<T>(method: string, body: Record<string, unknown>): Promise<T
 
 export async function slackOk(): Promise<boolean> {
   if (!slackConfigured()) return false;
-  try {
-    await call('auth.test', {});
-    return true;
-  } catch {
-    return false;
-  }
+  return memo('slack-ok', 300_000, async () => {
+    try {
+      await call('auth.test', {});
+      return true;
+    } catch {
+      return false;
+    }
+  });
 }
 
 export async function postMessage(channel: string, text: string, threadTs?: string): Promise<string> {

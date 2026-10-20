@@ -126,7 +126,7 @@ export default async function Home({ params, searchParams }: { params: Promise<{
                     <div className="strong" style={{ fontSize: 15 }}>{b.title}</div>
                     <div className="small muted">{b.fix}</div>
                   </div>
-                  <Link href={b.href} style={{ fontSize: 14, minHeight: 44, display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
+                  <Link prefetch={false} href={b.href} style={{ fontSize: 14, minHeight: 44, display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
                     {b.action} ›
                   </Link>
                 </div>
@@ -171,7 +171,7 @@ export default async function Home({ params, searchParams }: { params: Promise<{
                   </div>
                 ))}
                 <div className="wrap" style={{ marginTop: 'auto', gap: 10 }}>
-                  <Link href={`${base}/builds#${last.date}`} className="btn btn-outline btn-sm">
+                  <Link prefetch={false} href={`${base}/builds#${last.date}`} className="btn btn-outline btn-sm">
                     See build log
                   </Link>
                   {last.command && channel ? (
@@ -191,7 +191,7 @@ export default async function Home({ params, searchParams }: { params: Promise<{
       <section aria-label="Claude requests" className="section">
         <div className="row-between">
           <h2 className="h2">Asked of Claude</h2>
-          <Link href={`${base}/commands`} className="small">All requests ›</Link>
+          <Link prefetch={false} href={`${base}/commands`} className="small">All requests ›</Link>
         </div>
         <div className="card" style={{ padding: '8px 24px', gap: 0 }}>
           <CommandTracker clientId={clientId} initial={commands} chatLink={setupValue(s.setup, 'claudeChat') || undefined} />

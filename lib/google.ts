@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { IdentityPoolClient, JWT } from 'google-auth-library';
 import { getVercelOidcToken } from '@vercel/oidc';
 import { colToIndex } from './columns.ts';
+import { bust, memo } from './cache.ts';
 
 // Thin REST wrappers around the Sheets and Drive APIs, authenticated as the service account.
 // Two ways to sign in as the service account:
@@ -71,13 +72,21 @@ export function serviceAccountEmail(): string {
   }
 }
 
+const RETRY_MS = [1500, 4000, 9000];
+
 async function gfetch<T>(url: string, init: RequestInit = {}): Promise<T> {
   const { token } = await authClient().getAccessToken();
-  const res = await fetch(url, {
-    ...init,
-    cache: 'no-store',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...init.headers },
-  });
+  let res: Response;
+  for (let attempt = 0; ; attempt++) {
+    res = await fetch(url, {
+      ...init,
+      cache: 'no-store',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...init.headers },
+    });
+    // Google answers 429 when the per-minute read quota is used up; it clears within the minute.
+    if ((res.status !== 429 && res.status !== 503) || attempt >= RETRY_MS.length) break;
+    await new Promise((r) => setTimeout(r, RETRY_MS[attempt]));
+  }
   if (!res.ok) {
     let message = res.statusText;
     try {
@@ -98,16 +107,28 @@ export interface SheetMeta {
   tabs: { title: string; sheetId: number }[];
 }
 
+const READ_TTL = 30_000;
+
 export async function getMeta(spreadsheetId: string): Promise<SheetMeta> {
   if (fake()) return fakeMeta(spreadsheetId);
+  return memo(`meta|${spreadsheetId}`, READ_TTL, () => loadMeta(spreadsheetId));
+}
+
+async function loadMeta(spreadsheetId: string): Promise<SheetMeta> {
   const r = await gfetch<{ properties: { title: string }; sheets: { properties: { title: string; sheetId: number } }[] }>(
     `${SHEETS}/${spreadsheetId}?fields=properties.title,sheets.properties(sheetId,title)`,
   );
   return { title: r.properties.title, tabs: r.sheets.map((s) => s.properties) };
 }
 
-export async function batchGet(spreadsheetId: string, ranges: string[], render: Render = 'FORMATTED_VALUE'): Promise<string[][][]> {
+/** Cached for 30 s; pass `fresh` to read the sheet as it is right now (before a write). */
+export async function batchGet(spreadsheetId: string, ranges: string[], render: Render = 'FORMATTED_VALUE', fresh = false): Promise<string[][][]> {
   if (fake()) return ranges.map((r) => fakeGet(spreadsheetId, r, render));
+  if (fresh) return loadValues(spreadsheetId, ranges, render);
+  return memo(`values|${spreadsheetId}|${render}|${ranges.join(',')}`, READ_TTL, () => loadValues(spreadsheetId, ranges, render));
+}
+
+async function loadValues(spreadsheetId: string, ranges: string[], render: Render): Promise<string[][][]> {
   const q = ranges.map((r) => `ranges=${enc(r)}`).join('&');
   const r = await gfetch<{ valueRanges: { values?: string[][] }[] }>(
     `${SHEETS}/${spreadsheetId}/values:batchGet?${q}&valueRenderOption=${render}`,
@@ -122,6 +143,7 @@ export async function updateValues(spreadsheetId: string, range: string, values:
     method: 'PUT',
     body: JSON.stringify({ range, values }),
   });
+  bust(spreadsheetId);
 }
 
 /** Appends below the last row. RAW so nothing turns into a date or a number. */
@@ -131,6 +153,7 @@ export async function appendValues(spreadsheetId: string, range: string, values:
     method: 'POST',
     body: JSON.stringify({ values }),
   });
+  bust(spreadsheetId);
 }
 
 export async function addTab(spreadsheetId: string, title: string): Promise<void> {
@@ -139,6 +162,7 @@ export async function addTab(spreadsheetId: string, title: string): Promise<void
     method: 'POST',
     body: JSON.stringify({ requests: [{ addSheet: { properties: { title } } }] }),
   });
+  bust(spreadsheetId);
 }
 
 /** Copies one tab from a template spreadsheet and gives it its original name. */
@@ -161,11 +185,17 @@ export async function copyTabFrom(templateId: string, tabTitle: string, destinat
       requests: [{ updateSheetProperties: { properties: { sheetId: copied.sheetId, title: tabTitle }, fields: 'title' } }],
     }),
   });
+  bust(destinationId);
 }
 
 /** Dropdown options of a cell (data validation ONE_OF_LIST), or [] when it is free text. */
 export async function dropdownOptions(spreadsheetId: string, a1: string): Promise<string[]> {
   if (fake()) return fakeStore().dropdowns?.[a1.replace(/\d+$/, '')] ?? [];
+  // Dropdown lists rarely change; one read per column every 10 minutes.
+  return memo(`dropdown|${spreadsheetId}|${a1.replace(/\d+$/, '')}`, 600_000, () => loadDropdown(spreadsheetId, a1));
+}
+
+async function loadDropdown(spreadsheetId: string, a1: string): Promise<string[]> {
   type V = { sheets?: { data?: { rowData?: { values?: { dataValidation?: { condition?: { type: string; values?: { userEnteredValue: string }[] } } }[] }[] }[] }[] };
   const r = await gfetch<V>(`${SHEETS}/${spreadsheetId}?ranges=${enc(a1)}&fields=sheets.data.rowData.values.dataValidation`);
   const cond = r.sheets?.[0]?.data?.[0]?.rowData?.[0]?.values?.[0]?.dataValidation?.condition;
@@ -182,6 +212,10 @@ export interface DriveFile {
 
 export async function listFolder(folderId: string): Promise<DriveFile[]> {
   if (fake()) return fakeStore().drive?.[folderId] ?? [];
+  return memo(`folder|${folderId}`, 300_000, () => loadFolder(folderId));
+}
+
+async function loadFolder(folderId: string): Promise<DriveFile[]> {
   const q = enc(`'${folderId}' in parents and trashed = false`);
   const r = await gfetch<{ files: DriveFile[] }>(
     `https://www.googleapis.com/drive/v3/files?q=${q}&pageSize=50&supportsAllDrives=true&includeItemsFromAllDrives=true` +
@@ -192,12 +226,14 @@ export async function listFolder(folderId: string): Promise<DriveFile[]> {
 
 export async function driveReachable(folderId: string): Promise<boolean> {
   if (fake()) return true;
-  try {
-    await gfetch(`https://www.googleapis.com/drive/v3/files/${folderId}?fields=id&supportsAllDrives=true`);
-    return true;
-  } catch {
-    return false;
-  }
+  return memo(`drive-ok|${folderId}`, 300_000, async () => {
+    try {
+      await gfetch(`https://www.googleapis.com/drive/v3/files/${folderId}?fields=id&supportsAllDrives=true`);
+      return true;
+    } catch {
+      return false;
+    }
+  });
 }
 
 /* ---------------- dev fixture (FAKE_SHEETS_FILE) ---------------- */

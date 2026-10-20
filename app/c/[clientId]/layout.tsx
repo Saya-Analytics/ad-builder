@@ -46,7 +46,9 @@ export default async function ClientLayout({ children, params }: { children: Rea
             <p className="banner" role="alert">
               {loaded.kind === 'access'
                 ? `Can’t read ${client.name}’s sheet. Share it with ${serviceAccountEmail()}.`
-                : `Can’t load ${client.name}: ${loaded.error}`}
+                : /quota/i.test(loaded.error)
+                  ? 'Google asked us to slow down (too many sheet reads this minute). Wait a minute and press Refresh.'
+                  : `Can’t load ${client.name}: ${loaded.error}`}
             </p>
           </div>
         ) : null}
