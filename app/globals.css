@@ -67,6 +67,8 @@ p { margin: 0; }
 .navbtn:hover { background: rgba(0, 0, 0, 0.04); color: var(--ink); text-decoration: none; }
 .navbtn[aria-current='page'] { background: var(--track); font-weight: 600; }
 .navbtn .note { margin-left: auto; font-size: 12px; color: var(--muted); font-weight: 400; }
+.badge-red { margin-left: auto; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: #e5332a; color: #fff; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
+.btn-claude { background: #e5332a; }
 .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 
 .switcher { position: relative; }

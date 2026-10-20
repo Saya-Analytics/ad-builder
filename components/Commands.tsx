@@ -1,13 +1,27 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { sendCommand, nudgeCommand, type SendResult } from '@/app/actions';
 import type { CommandType } from '@/lib/commands';
 import { Icon } from './Icon';
 
+function ClaudeChatButton({ href }: { href: string }) {
+  return (
+    <a href={href} target="_blank" rel="noreferrer" className="btn btn-sm btn-claude" style={{ alignSelf: 'flex-start', color: '#fff' }}>
+      Open the Claude session ›
+    </a>
+  );
+}
+
 /** What happened after a button asked Claude for something, with the manual fallback. */
 export function CommandOutcome({ result, dark }: { result: SendResult; dark?: boolean }) {
   const [copied, setCopied] = useState(false);
+  const router = useRouter();
+  // Re-read so the red badge on "Claude session" and the requests list show the new command.
+  useEffect(() => {
+    if (result.ok) router.refresh();
+  }, [result, router]);
   const copy = async () => {
     if (!result.prompt) return;
     await navigator.clipboard.writeText(result.prompt).catch(() => {});
@@ -26,6 +40,7 @@ export function CommandOutcome({ result, dark }: { result: SendResult; dark?: bo
       <div className={dark ? 'on-dark small' : 'notice small'} role="status">
         <strong>Sent to Claude in Slack ✓</strong>
         <span>Claude replies in the thread; the result shows up here and in the sheet.</span>
+        {result.chatLink ? <ClaudeChatButton href={result.chatLink} /> : null}
       </div>
     );
   }
@@ -42,9 +57,7 @@ export function CommandOutcome({ result, dark }: { result: SendResult; dark?: bo
           {copied ? 'Prompt copied ✓' : 'Copy prompt ›'}
         </button>
         {result.chatLink ? (
-          <a href={result.chatLink} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44 }}>
-            Open the Claude chat ›
-          </a>
+          <ClaudeChatButton href={result.chatLink} />
         ) : (
           <span className="muted">Add the Claude chat link in Settings to open it from here.</span>
         )}

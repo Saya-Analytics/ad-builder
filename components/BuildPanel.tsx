@@ -21,7 +21,8 @@ const COL_NAME: Record<Col, string> = {
 /** What would still stop Claude, judged from the panel's values (same rules as the AT check). */
 function missing(v: PlanRow['cells']): string[] {
   const out: string[] = [];
-  if (!/drive\.google\.com\//.test(v.Z)) out.push('Drive folder link');
+  // Only digits = a creator's post ID for a partnership ad.
+  if (!/drive\.google\.com\//.test(v.Z) && !/^\d{8,}(_\d{8,})?$/.test(v.Z.trim())) out.push('Drive folder link or creator post ID');
   if (!v.Y) out.push('URL');
   if (!v.AO) out.push('what to do');
   else if (v.AO !== 'SAME AS ROW ABOVE') {
@@ -311,7 +312,7 @@ function PanelContent({ clientId, plan, mode, problem, close }: { clientId: stri
                         </div>
                       </td>
                       <td style={{ minWidth: 240 }}>
-                        <input className="input" type="url" value={v.Z} placeholder="drive.google.com/drive/folders/…" onChange={(e) => set(r.row, 'Z', e.target.value)} aria-label={`Drive link row ${r.row}`} />
+                        <input className="input" type="text" value={v.Z} placeholder="Drive folder link, or creator post ID" onChange={(e) => set(r.row, 'Z', e.target.value)} aria-label={`Drive link row ${r.row}`} />
                         {r.driveElsewhere && v.Z !== r.driveElsewhere ? (
                           <button type="button" className="linkbtn xs" style={{ minHeight: 32 }} onClick={() => set(r.row, 'Z', r.driveElsewhere!)}>
                             Use the Drive link found in another column ›

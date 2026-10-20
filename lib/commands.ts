@@ -1,3 +1,5 @@
+import { remindersBlock } from './reminders.ts';
+
 // COMMANDS tab: the queue between the app and Claude. The app only appends rows;
 // Claude moves status queued/sent_to_slack → running → done | failed and writes the note.
 
@@ -87,7 +89,8 @@ export function commandPrompt(opts: {
 }): string {
   const sheet = `https://docs.google.com/spreadsheets/d/${opts.sheetId}`;
   const args = opts.args ? `: ${opts.args}` : '';
-  return `run ${opts.skill} ${opts.command} for ${opts.clientName}, sheet ${sheet}${args} · command ${opts.id} (update its row in the COMMANDS tab)`;
+  const ask = `run ${opts.skill} ${opts.command} for ${opts.clientName}, sheet ${sheet}${args} · command ${opts.id} (update its row in the COMMANDS tab)`;
+  return `${ask}\n\n${remindersBlock(opts.command)}`;
 }
 
 /** Queued for longer than the schedule interval (plus 10 min grace). */

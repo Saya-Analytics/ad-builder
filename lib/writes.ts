@@ -9,6 +9,9 @@ export type WriteResult =
   | { ok: false; conflict: { current: string; attempted: string } }
   | { ok: false; error: string };
 
+/** Long digit strings (creator post IDs) stay text; otherwise Sheets turns them into 1.79E+16. */
+const asText = (v: string) => (/^\d{12,}$/.test(v.trim()) ? `'${v.trim()}` : v);
+
 export async function safeWrite(spreadsheetId: string, range: string, expected: string, value: string): Promise<WriteResult> {
   if (value.trim().startsWith('=')) return { ok: false, error: 'Formulas can’t be written from the app.' };
   const [[shown], [formula]] = await Promise.all([
@@ -20,7 +23,7 @@ export async function safeWrite(spreadsheetId: string, range: string, expected: 
   if (raw.startsWith('=')) return { ok: false, error: 'This cell is a formula. Change it in the sheet.' };
   if (current.trim() !== expected.trim()) return { ok: false, conflict: { current, attempted: value } };
   if (current.trim() === value.trim()) return { ok: true };
-  await updateValues(spreadsheetId, range, [[value]]);
+  await updateValues(spreadsheetId, range, [[asText(value)]]);
   return { ok: true };
 }
 
@@ -52,7 +55,7 @@ export async function safeWriteMany(spreadsheetId: string, edits: CellEdit[]): P
     else if (raw.startsWith('=')) results.push({ range: e.range, ok: false, error: 'This cell is a formula. Change it in the sheet.' });
     else if (current.trim() !== e.expected.trim()) results.push({ range: e.range, ok: false, conflict: { current, attempted: e.value } });
     else {
-      if (current.trim() !== e.value.trim()) toWrite.push({ range: e.range, values: [[e.value]] });
+      if (current.trim() !== e.value.trim()) toWrite.push({ range: e.range, values: [[asText(e.value)]] });
       results.push({ range: e.range, ok: true });
     }
   });

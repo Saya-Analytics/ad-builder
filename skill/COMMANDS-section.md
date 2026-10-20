@@ -19,7 +19,7 @@ G status · H slack_ts · I started_at · J finished_at · K note · L slack_thr
    - From a Slack tag: the row whose `command_id` is in the message.
    - From the scheduled task: rows with `queued`, plus rows with `sent_to_slack` whose `requested_at` is older than 2× the CLAUDE SETUP "Command check interval (minutes)" (Claude in Slack missed them).
 3. Re-read that row's G right before starting. If it isn't `queued` / `sent_to_slack` any more, skip it (another run took it). Otherwise set **G = `running`** and **I = now (ISO)**.
-4. Run it:
+4. Run it. The message ends with a "Remember (hard rules of the skill)" list: go through it, because those rules are the same as the hard rules at the top of this skill.
 
 | C command | What to do |
 |---|---|

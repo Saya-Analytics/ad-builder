@@ -222,6 +222,8 @@ export const hookCode = (label: string) => label.trim().slice(0, 4);
 
 export const isDriveLink = (s: string) => /^https?:\/\/(drive|docs)\.google\.com\//.test(s);
 export const driveFolderId = (s: string) => s.match(/\/folders\/([\w-]+)/)?.[1] ?? null;
+/** Only digits in Z (e.g. 17890123456789012, or page_post 123_456) = a creator's post ID → partnership ad, no Drive folder. */
+export const isCreatorPostId = (s: string) => /^\d{8,}(_\d{8,})?$/.test(s.trim());
 export const isBuilding = (r: ApprovalRow) => r.status.toLowerCase() === STATUS_BUILDING.toLowerCase();
 
 /**
@@ -250,11 +252,19 @@ export function rowStatus(r: ApprovalRow, copy: Map<string, CopySet>): StatusRes
 }
 
 function firstFailure(r: ApprovalRow, copy: Map<string, CopySet>): Problem | null {
+  const partnership = isCreatorPostId(r.drive);
+  // The sheet's AT formula only knows Drive links; a post ID in Z is fine.
+  if (partnership && r.check.startsWith('✗') && /\bZ\b|drive/i.test(r.check)) return firstFailureAfterZ(r, copy);
   if (r.check.startsWith('✗')) return { title: r.check.replace(/^✗\s*/, ''), fix: 'Do what the sheet check (AT) says.', cols: ['AT'] };
   if (r.check && !r.check.includes('✓')) return { title: `Sheet check says: ${r.check}`, fix: 'Do what AT says.', cols: ['AT'] };
+  if (partnership) return firstFailureAfterZ(r, copy);
   if (!r.drive) return { title: 'No creative link', fix: 'Paste the Drive folder link in Z.', cols: ['Z'] };
   if (!isDriveLink(r.drive)) return { title: 'Assets not in Drive', fix: 'Move to Drive and paste the folder link in Z.', cols: ['Z'] };
   if (!driveFolderId(r.drive)) return { title: 'Z is a file, not a folder', fix: 'Paste the creative’s Drive folder link in Z.', cols: ['Z'] };
+  return firstFailureAfterZ(r, copy);
+}
+
+function firstFailureAfterZ(r: ApprovalRow, copy: Map<string, CopySet>): Problem | null {
   if (!r.url) return { title: 'No website URL', fix: 'Fill Y with the product URL.', cols: ['Y'] };
   const dest = { AO: r.action, AP: r.campaign, AQ: r.adSet };
   const missing = (['AO', 'AP', 'AQ'] as const).filter((c) => !dest[c]);
@@ -281,8 +291,14 @@ export function pipelineSteps(r: ApprovalRow, copy: Map<string, CopySet>): Step[
   return [
     {
       label: 'Own Drive folder',
-      detail: driveFolderId(r.drive) ? r.log.organized ?? 'Z points to a folder' : r.drive ? 'Z is not a folder link' : 'Z is empty',
-      done: !!driveFolderId(r.drive),
+      detail: isCreatorPostId(r.drive)
+        ? `Creator post ${r.drive.trim()} · partnership ad`
+        : driveFolderId(r.drive)
+          ? r.log.organized ?? 'Z points to a folder'
+          : r.drive
+            ? 'Z is not a folder link'
+            : 'Z is empty',
+      done: !!driveFolderId(r.drive) || isCreatorPostId(r.drive),
     },
     {
       label: 'Analyzed',

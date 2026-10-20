@@ -7,6 +7,29 @@ import { NavLink } from './NavLink';
 import { Search, type SearchItem } from './Search';
 import { BuildButton } from './BuildPanel';
 import { RefreshButton } from './RefreshButton';
+import { isOpen } from '@/lib/commands';
+
+/** Straight to this client's Claude chat. The red badge counts requests Claude hasn't finished. */
+function ClaudeSessionLink({ href, open, settings }: { href: string | null; open: number; settings: string }) {
+  const badge = open ? (
+    <span className="badge-red" aria-label={`${open} request${open === 1 ? '' : 's'} waiting on Claude`}>
+      {open}
+    </span>
+  ) : null;
+  if (!href)
+    return (
+      <Link prefetch={false} href={settings} className="navbtn" title="Add the Claude chat link in Settings">
+        <Icon name="spark" /> Claude session
+        {badge ?? <span className="note">add link</span>}
+      </Link>
+    );
+  return (
+    <a href={href} target="_blank" rel="noreferrer" className="navbtn" title="Open this client’s Claude chat">
+      <Icon name="spark" /> Claude session
+      {badge ?? <span className="note">open ›</span>}
+    </a>
+  );
+}
 
 export interface Connection {
   name: string;
@@ -83,6 +106,11 @@ export function Sidebar({
       </details>
 
       {state ? <BuildButton clientId={client.id} /> : null}
+      <ClaudeSessionLink
+        href={setupValue(state?.setup ?? null, 'claudeChat') || null}
+        open={state ? state.commands.filter(isOpen).length : 0}
+        settings={`${base}/settings`}
+      />
       <RefreshButton />
       <Search items={search} />
 

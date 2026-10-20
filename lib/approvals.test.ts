@@ -128,3 +128,20 @@ test('old AD APPROVALS layout is detected', () => {
   const legacy = ['PREVIEW', 'STATUS', 'Brand', 'AD Name', 'Headline', 'Primary Text', 'Description'];
   assert.match(approvalsLayoutIssue(legacy) ?? '', /old layout \(7 columns/);
 });
+
+test('a creator post ID in Z is a partnership ad, not a Drive problem', () => {
+  const [r] = parseApprovals([row({ ...READY, Z: '17890123456789012', AT: '✗ Z · paste the Google Drive folder link' })], 6);
+  assert.equal(rowStatus(r, copy).state, 'ready');
+  assert.equal(pipelineSteps(r, copy)[0].done, true);
+  const [bad] = parseApprovals([row({ ...READY, Z: 'see brief' })], 6);
+  assert.equal(rowStatus(bad, copy).state, 'fix');
+});
+
+test('every prompt carries the hard rules', async () => {
+  const { commandPrompt } = await import('./commands.ts');
+  const p = commandPrompt({ skill: 's', command: 'BUILD', args: 'rows 6', clientName: 'X', sheetId: 'id', id: 'CMD-1' });
+  assert.match(p, /Remember \(hard rules/);
+  assert.match(p, /ad account/);
+  assert.match(p, /landing page/);
+  assert.match(p, /PARTNERSHIP/);
+});
